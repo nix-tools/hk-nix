@@ -4,7 +4,6 @@
     { config, pkgs, ... }:
     {
       packages.hk = config.hk-nix.package;
-
-      formatter = pkgs.nixfmt-rfc-style;
+      formatter = pkgs.nixfmt;
     };
 }

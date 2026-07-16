@@ -6,7 +6,7 @@
   perSystem =
     { pkgs, lib, ... }:
     let
-      nixfmt = lib.getExe pkgs.nixfmt-rfc-style;
+      nixfmt = lib.getExe pkgs.nixfmt;
       deadnix = lib.getExe pkgs.deadnix;
 
       steps = {

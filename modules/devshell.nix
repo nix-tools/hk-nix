@@ -14,7 +14,7 @@
         packages = [
           config.hk-nix.package
           pkgs.git
-          pkgs.nixfmt-rfc-style
+          pkgs.nixfmt
           pkgs.deadnix
         ];
         inherit (config.hk-nix) shellHook;

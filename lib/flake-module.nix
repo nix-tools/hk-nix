@@ -8,7 +8,7 @@
 #   perSystem = { config, pkgs, lib, ... }: {
 #     hk-nix.settings.hooks."pre-commit".steps.nixfmt = {
 #       glob = "*.nix";
-#       fix  = "${lib.getExe pkgs.nixfmt-rfc-style} {{files}}";
+#       fix  = "${lib.getExe pkgs.nixfmt} {{files}}";
 #     };
 #     devShells.default = pkgs.mkShell { inherit (config.hk-nix) shellHook; };
 #   };
