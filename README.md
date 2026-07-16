@@ -1,29 +1,34 @@
 # hk-nix
 
-A Nix wrapper for [`hk`](https://github.com/jdx/hk), the fast git hook manager
-and project linter. It is to `hk` what
-[`lefthook.nix`](https://github.com/sudosubin/lefthook.nix) is to `lefthook`:
-declare your hooks in Nix, pin the linters with Nix, and get the *same* checks
+A Nix wrapper for [`hk`](https://github.com/jdx/hk), the fast git hook manager and project linter.
+`hk-nix` is to `hk` what [`lefthook.nix`][lefthook-nix] is to `lefthook`: declare your hooks in Nix,
+pin the linters with Nix, and always enable hooks by installing them via a Nix devshell.
 
-- **always on** — entering the dev shell installs the git hooks, so they run on
-  every commit/push; and
-- **always in sync with CI** — the identical hooks run as a `nix flake check`
-  derivation.
+[lefthook-nix]: https://github.com/sudosubin/lefthook.nix
 
-Commands reference linters by absolute `/nix/store` path, so the exact same
-pinned tools run locally and in CI.
+`hk-nix` is **always on**: upon entering a devshell, `hk-nix` installs the git hooks, so they run on freshly clones repositories, and when the hooks change.
+
+`hk-nix` is **always in sync with CI**: Commands called by hooks reference linters by absolute `/nix/store` path, so the exact same pinned tools can run locally and in CI.
 
 ## How it works
 
-`hk` is configured with [Pkl](https://pkl-lang.org) (`hk.pkl`). hk-nix generates
-that `hk.pkl` from a Nix attrset and points its `amends` at hk's `Config.pkl`
-schema **from the pinned `jdx/hk` input at an absolute store path**, so
+`hk` is configured with [Pkl](https://pkl-lang.org) (via the hk.pkl file). `hk-nix` generates
+that hk.pkl file from a Nix attrset and points its `amends` at hk's `Config.pkl`
+schema **from the pinned `jdx/hk` input at an absolute store path**. This means
 evaluation is fully offline (no `package://` download) and works inside the
 `nix flake check` sandbox. The generated file is symlinked into the repo root
-and `hk install` wires up git hooks — using **config-based hooks on git 2.54+**
-(`hook.<name>.command` in `.git/config`; `.git/hooks/` is left untouched).
+and `hk install` wires up git hooks.
+
+`hk-nix` defaults to using `hk`'s support for [**git 2.54+ config-based hooks**][git-config-hooks].
+
+[git-config-hooks]: https://github.blog/open-source/git/highlights-from-git-2-54/#h-config-based-hooks
 
 ## Usage
+
+A Nix flake that adds `hk-nix` as input, imports the `hk-nix` flake module, defines a `pre-commit` hook, adds `hk` and `git` to the devshell, and enables the `hk-nix` shellHook which activates when entering the devshell.
+
+Importing the flake module automatically sets `checks.hk`, so `nix flake check` runs the `pre-commit` hook read-only over all files.
+
 
 ```nix
 {
@@ -49,25 +54,21 @@ and `hk install` wires up git hooks — using **config-based hooks on git 2.54+*
             stash = "git";
             steps.nixfmt = {
               glob = "*.nix";
-              check = "${lib.getExe pkgs.nixfmt-rfc-style} --check {{files}}";
-              fix = "${lib.getExe pkgs.nixfmt-rfc-style} {{files}}";
+              check = "${lib.getExe pkgs.nixfmt} --check {{files}}";
+              fix = "${lib.getExe pkgs.nixfmt} {{files}}";
             };
           };
 
-          # Always on: installs the hooks when the shell is entered.
           devShells.default = pkgs.mkShell {
             packages = [ config.hk-nix.package pkgs.git ];
-            inherit (config.hk-nix) shellHook;
+            shellHook = config.hk-nix.shellHook;
           };
         };
     };
 }
 ```
 
-`imports = [ hk-nix.flakeModules.default ]` also sets `checks.hk`, so `nix flake
-check` runs the `pre-commit` hook read-only over all files.
-
-Add the generated symlink to your `.gitignore`:
+You may want to add the generated symlink to your `.gitignore`:
 
 ```gitignore
 /hk.pkl
@@ -77,11 +78,11 @@ Add the generated symlink to your `.gitignore`:
 
 | Option | Type | Default | Description |
 | --- | --- | --- | --- |
-| `settings` | attrs | `{ }` | The `hk.pkl` top-level (e.g. `{ hooks = { ... }; }`). |
+| `settings` | attrs | `{ }` | The hk.pkl top-level (e.g. `{ hooks = { ... }; }`). |
 | `package` | package | overlay's `hk` | The hk binary. Override with `pkgs.hk` (nixpkgs) or another build. |
 | `src` | path | `self` | Project root copied into the check derivation. |
 | `checkHook` | str | `"pre-commit"` | Hook run (read-only) by `checks.hk`. |
-| `shellHook` | str | *(read-only)* | Symlinks `hk.pkl` and installs the git hooks. |
+| `shellHook` | str | *(read-only)* | Symlinks hk.pkl and installs the git hooks. |
 | `check` | package | *(read-only)* | The `checks.hk` derivation. |
 
 ### Choosing the hk binary
@@ -100,10 +101,10 @@ hk-nix.package = pkgs.hk;          # use nixpkgs' hk
   The dev shell puts it there; with [direnv](https://direnv.net) it is present
   for editors/terminals opened in the project too. Committing from a context
   with no `hk` on `PATH` (e.g. a GUI launched outside direnv) skips the hook.
-- Builtin linters (`Builtins.pkl`) are not wired up yet — declare steps
+- Builtin linters (`Builtins.pkl`) are not supported yet. Declare steps
   explicitly (`glob` + `check`/`fix` shell strings).
 - `check`/`fix` are shell strings; the `Command { argv = ... }` form is not yet
   rendered.
-- Config is injected by symlinking `hk.pkl`; the `HK_FILE` env-var mechanism is
-  not supported yet.
+- Config is injected by symlinking hk.pkl; the `HK_FILE` env-var mechanism is
+  not supported yet. Supporting it would be neat, since then it can live in a Nix store derivation, rather than a .gitignore'd working-tree file.
 - Per-repo install only (no `hk install --global`).
