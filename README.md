@@ -36,7 +36,7 @@ Importing the flake module automatically sets `checks.hk`, so `nix flake check` 
     nixpkgs.url = "https://nixos.org/channels/nixpkgs-unstable/nixexprs.tar.xz";
     flake-parts.url = "github:hercules-ci/flake-parts";
 
-    hk-nix.url = "github:sshine/hk-nix";
+    hk-nix.url = "github:nix-tools/hk-nix";
     hk-nix.inputs.nixpkgs.follows = "nixpkgs";
   };
 
