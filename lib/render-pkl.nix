@@ -1,11 +1,11 @@
-# Nix -> Pkl renderer for hk configuration.
+# Nix -> Pkl renderer for hk configuration, exposed as `flake.lib.renderHkPkl`.
 #
 # Turns a Nix attrset describing an hk.pkl into a Pkl source string that
 # `amends` a local (store-path) copy of hk's Config.pkl schema, so evaluation
 # is fully offline — no `package://` fetch — and works inside the nix build
 # sandbox. This is the hk analogue of lefthook.nix's `builtins.toJSON`+jq step,
 # except Pkl is not JSON so we need a small, hk-shaped pretty-printer.
-{ lib }:
+{ lib, ... }:
 
 let
   inherit (builtins)
@@ -80,10 +80,19 @@ let
     lib.concatStringsSep "\n" (lib.mapAttrsToList renderEntry attrs);
 in
 {
+  # flake-parts has no built-in `flake.lib` output, so declare it as a mergeable
+  # attrset here — otherwise the definitions spread across render-pkl.nix and
+  # run.nix collide ("defined multiple times"). Declared once, defined anywhere.
+  options.flake.lib = lib.mkOption {
+    type = lib.types.lazyAttrsOf lib.types.raw;
+    default = { };
+    description = "Reusable Nix functions hk-nix exports as `hk-nix.lib.*`.";
+  };
+
   # renderHkPkl { schemaPath, settings } -> Pkl source string.
   #   schemaPath: absolute path to hk's Config.pkl (a /nix/store path).
   #   settings:   the hk.pkl top-level as a Nix attrset, e.g. { hooks = { ... }; }.
-  renderHkPkl =
+  config.flake.lib.renderHkPkl =
     {
       schemaPath,
       settings,
