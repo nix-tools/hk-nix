@@ -6,9 +6,9 @@ pin the linters with Nix, and always enable hooks by installing them via a Nix d
 
 [lefthook-nix]: https://github.com/sudosubin/lefthook.nix
 
-`hk-nix` is **always on**: upon entering a devshell, `hk-nix` installs the git hooks, so they run on freshly clones repositories, and when the hooks change.
+`hk-nix` is **always on**: upon entering a devshell, `hk-nix` installs the git hooks, so they run on freshly cloned repositories, given `direnv allow` or `nix develop`, and whenever the hooks change, either by reloading the devshell incidentally or by watching the hooks from `.envrc`.
 
-`hk-nix` is **always in sync with CI**: Commands called by hooks reference linters by absolute `/nix/store` path, so the exact same pinned tools can run locally and in CI.
+`hk-nix` is **always in sync with CI**: Commands called by hooks reference linters by absolute `/nix/store` path, so the exact same pinned tools can run locally and in CI. Not only does `hk` provide first-class local CI, `hk-nix` syncs them with `nix flake check` anywhere.
 
 ## How it works
 
