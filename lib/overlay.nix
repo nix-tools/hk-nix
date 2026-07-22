@@ -5,13 +5,12 @@
 { inputs, ... }:
 
 {
-  flake.overlays.default =
-    final: _prev: {
-      # Build from the pinned input, but skip hk's own test suite: one branch-detection
-      # test (test_get_current_branch_attached_and_detached) fails in the nix sandbox,
-      # and we only need the binary, not upstream's test results.
-      hk = (final.callPackage "${inputs.hk}/default.nix" { }).overrideAttrs (_: {
-        doCheck = false;
-      });
-    };
+  flake.overlays.default = final: _prev: {
+    # Build from the pinned input, but skip hk's own test suite: one branch-detection
+    # test (test_get_current_branch_attached_and_detached) fails in the nix sandbox,
+    # and we only need the binary, not upstream's test results.
+    hk = (final.callPackage "${inputs.hk}/default.nix" { }).overrideAttrs (_: {
+      doCheck = false;
+    });
+  };
 }

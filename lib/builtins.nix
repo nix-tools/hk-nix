@@ -113,13 +113,47 @@
         xmllint = pkgs.libxml2.bin;
       };
 
-      # Default package for a builtin: null for hk-native ones; a curated exception;
-      # otherwise `pkgs.<name>` or `pkgs.<name-with-dashes>`; else a lazy, helpful
-      # throw. Only forced when a declared builtin step reads `.package`.
+      # Builtins whose tool is not packaged in Nixpkgs (npm/gem tools, vite-plus,
+      # and xo — whose real JS linter is unpackaged, while `pkgs.xo` is an
+      # unrelated, renamed alias). Listing them here makes referencing one without
+      # an `.override` fail with a clear message instead of a misleading Nixpkgs
+      # error (or silently resolving to the wrong package). See the tracking issue.
+      noNixpkgsPackage = [
+        "aqua_update_checksum"
+        "astro"
+        "contextlint"
+        "dclint"
+        "fasterer"
+        "knip"
+        "knip_strict"
+        "mdschema"
+        "reek"
+        "ryl"
+        "ryl_markdown"
+        "sherif"
+        "sorbet"
+        "sort_package_json"
+        "standard_js"
+        "tsserver"
+        "vp_check"
+        "vp_fmt"
+        "vp_lint"
+        "xo"
+      ];
+
+      # Default package for a builtin: null for hk-native ones; a clear throw for
+      # tools known to be absent from Nixpkgs; a curated exception; otherwise
+      # `pkgs.<name>` or `pkgs.<name-with-dashes>`; else a lazy fallback throw.
+      # Only forced when a declared builtin step reads `.package`.
       defaultPackage =
         name:
         if lib.elem name hkNativeBuiltins then
           null
+        else if lib.elem name noNixpkgsPackage then
+          throw ''
+            hk-nix: the '${name}' builtin has no default package — its tool is not in Nixpkgs.
+            Supply one explicitly:
+              steps.${name}.builtin = config.hk-nix.builtins.${name}.override { package = <package>; };''
         else if exceptions ? ${name} then
           exceptions.${name}
         else
