@@ -33,8 +33,8 @@
         lib.filter (n: lib.hasSuffix ".pkl" n) (lib.attrNames (builtins.readDir "${hkSrc}/pkl/builtins"))
       );
 
-      # Builtins whose command runs `hk util ...`: the tool is hk itself, already
-      # the runner, so no package is pinned and no PATH is injected.
+      # Builtins whose command runs hk itself (`hk util ...`, `hk test`): the tool
+      # is hk, already the runner, so no package is pinned and no PATH is injected.
       hkNativeBuiltins = [
         "byte_order_marker"
         "check_added_large_files"
@@ -47,6 +47,7 @@
         "detect_private_key"
         "fix_byte_order_marker"
         "fix_smart_quotes"
+        "hk_test"
         "mixed_line_ending"
         "newlines"
         "no_commit_to_branch"
@@ -55,10 +56,55 @@
         "trailing_whitespace"
       ];
 
-      # Curated overrides where the builtin identifier does not match a Nixpkgs
-      # attribute (after the `_`->`-` fallback below). Grows incrementally.
+      # Curated packages for builtins whose identifier does not match a Nixpkgs
+      # attribute (after the `_`->`-` fallback below). Grows incrementally; see the
+      # tracking issue for the builtins still lacking a default.
       exceptions = {
+        buf_format = pkgs.buf;
+        buf_lint = pkgs.buf;
+        buildifier_format = pkgs.buildifier;
+        buildifier_lint = pkgs.buildifier;
+        bundle_audit = pkgs.bundler-audit;
+        cargo_check = pkgs.cargo;
+        cargo_clippy = pkgs.clippy;
+        cargo_fmt = pkgs.rustfmt;
+        clang_format = pkgs.clang-tools;
+        cocogitto_commit_msg = pkgs.cocogitto;
+        cpp_lint = pkgs.cpplint;
+        deno_check = pkgs.deno;
+        erb = pkgs.ruby;
+        err_check = pkgs.errcheck;
+        ghalint_action = pkgs.ghalint;
+        ghalint_workflow = pkgs.ghalint;
+        go_fmt = pkgs.go;
+        go_fumpt = pkgs.gofumpt;
+        go_imports = pkgs.gotools;
+        go_lines = pkgs.golines;
+        go_sec = pkgs.gosec;
+        go_vet = pkgs.go;
+        go_vuln_check = pkgs.govulncheck;
+        gomod_tidy = pkgs.go;
+        harper_commit_message = pkgs.harper;
+        just_format = pkgs.just;
+        markdown_lint = pkgs.markdownlint-cli;
+        mix_compile = pkgs.elixir;
+        mix_fmt = pkgs.elixir;
+        mix_test = pkgs.elixir;
         nix_fmt = pkgs.nixfmt;
+        nixpkgs_format = pkgs.nixpkgs-fmt;
+        ox_lint = pkgs.oxlint;
+        pinact_update = pkgs.pinact;
+        pkl_format = pkgs.pkl;
+        rubocop_server = pkgs.rubocop;
+        ruff_format = pkgs.ruff;
+        sql_fluff = pkgs.sqlfluff;
+        staticcheck = pkgs.go-tools;
+        taplo_format = pkgs.taplo;
+        tf_lint = pkgs.tflint;
+        tofu = pkgs.opentofu;
+        tombi_format = pkgs.tombi;
+        tsc = pkgs.typescript;
+        xmllint = pkgs.libxml2.bin;
       };
 
       # Default package for a builtin: null for hk-native ones; a curated exception;
