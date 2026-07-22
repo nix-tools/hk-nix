@@ -84,17 +84,15 @@ hand-writing `glob` + `check`/`fix`:
 ```nix
 perSystem =
   { config, pkgs, lib, ... }:
-  # `builtins` is an ordinary name in Nix, not a keyword, so it can be shadowed;
-  # nothing here calls a global builtin. Drop this line to keep the global.
-  let inherit (config.hk-nix) builtins; in
+  let hk-builtins = config.hk-nix.builtins; in
   {
     hk-nix.settings.hooks."pre-commit" = {
       fix = true;
       stash = "git";
       steps = {
-        nix_fmt.builtin = builtins.nix_fmt;
-        gitleaks.builtin = builtins.gitleaks;
-        prettier.builtin = builtins.prettier;
+        nix_fmt.builtin = hk-builtins.nix_fmt;
+        gitleaks.builtin = hk-builtins.gitleaks;
+        prettier.builtin = hk-builtins.prettier;
       };
     };
 

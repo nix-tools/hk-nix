@@ -9,6 +9,9 @@
 
     import-tree.url = "github:vic/import-tree";
 
+    treefmt-nix.url = "github:numtide/treefmt-nix";
+    treefmt-nix.inputs.nixpkgs.follows = "nixpkgs";
+
     hk.url = "github:jdx/hk";
     hk.inputs.nixpkgs.follows = "nixpkgs";
   };

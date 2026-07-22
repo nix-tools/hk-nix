@@ -1,9 +1,9 @@
-# Expose the hk binary as a package and set the formatter.
+# Expose the hk binary as a package. The formatter is set by treefmt-nix (see
+# treefmt.nix).
 {
   perSystem =
-    { config, pkgs, ... }:
+    { config, ... }:
     {
       packages.hk = config.hk-nix.package;
-      formatter = pkgs.nixfmt;
     };
 }
