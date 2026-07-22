@@ -10,6 +10,7 @@
         packages = [
           config.hk-nix.package
           pkgs.git
+          pkgs.just
           pkgs.nixfmt
           pkgs.deadnix
         ];

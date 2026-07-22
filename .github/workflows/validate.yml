@@ -1,0 +1,16 @@
+# Heavy, on-demand check: verify every hk builtin resolves to a Nixpkgs package.
+# Not part of the git hooks or the per-push checks — trigger it manually from the
+# Actions tab (or `gh workflow run validate.yml`).
+name: validate
+
+on:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - name: just validate
+        run: nix run nixpkgs#just -- validate
