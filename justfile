@@ -14,7 +14,12 @@ validate:
     report=$(nix eval --impure --raw --expr '
       let
         flake = builtins.getFlake (toString ./.);
-        pkgs = import flake.inputs.nixpkgs { system = builtins.currentSystem; };
+        # allowUnfree so a correctly-mapped but license-gated package (brakeman,
+        # terraform) counts as passing; consumers still set allowUnfree themselves.
+        pkgs = import flake.inputs.nixpkgs {
+          system = builtins.currentSystem;
+          config.allowUnfree = true;
+        };
         lib = pkgs.lib;
         bi = flake.lib.mkHkBuiltins { inherit pkgs; hkSrc = flake.inputs.hk; };
         # Pass if the package is null (hk-native, needs none) or its derivation
