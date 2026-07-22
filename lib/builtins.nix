@@ -56,9 +56,10 @@
         "trailing_whitespace"
       ];
 
-      # Curated packages for builtins whose identifier does not match a Nixpkgs
-      # attribute (after the `_`->`-` fallback below). Grows incrementally; see the
-      # tracking issue for the builtins still lacking a default.
+      # Curated packages for builtins the `pkgs.<name>` fallback below can't resolve
+      # on its own: a different attribute, a package-set member, or a name that
+      # collides with an unrelated package. Grows incrementally; see the tracking
+      # issue for the builtins still lacking a default.
       exceptions = {
         buf_format = pkgs.buf;
         buf_lint = pkgs.buf;
@@ -74,6 +75,7 @@
         deno_check = pkgs.deno;
         erb = pkgs.ruby;
         err_check = pkgs.errcheck;
+        flake8 = pkgs.python3Packages.flake8;
         ghalint_action = pkgs.ghalint;
         ghalint_workflow = pkgs.ghalint;
         go_fmt = pkgs.go;
@@ -86,6 +88,7 @@
         gomod_tidy = pkgs.go;
         harper_commit_message = pkgs.harper;
         just_format = pkgs.just;
+        luacheck = pkgs.luaPackages.luacheck;
         markdown_lint = pkgs.markdownlint-cli;
         mix_compile = pkgs.elixir;
         mix_fmt = pkgs.elixir;
@@ -93,17 +96,20 @@
         nix_fmt = pkgs.nixfmt;
         nixpkgs_format = pkgs.nixpkgs-fmt;
         ox_lint = pkgs.oxlint;
+        php_cs = pkgs.phpPackages.php-codesniffer;
         pinact_update = pkgs.pinact;
         pkl_format = pkgs.pkl;
         rubocop_server = pkgs.rubocop;
         ruff_format = pkgs.ruff;
         sql_fluff = pkgs.sqlfluff;
+        standard_rb = pkgs.rubyPackages.standard;
         staticcheck = pkgs.go-tools;
         taplo_format = pkgs.taplo;
         tf_lint = pkgs.tflint;
         tofu = pkgs.opentofu;
         tombi_format = pkgs.tombi;
         tsc = pkgs.typescript;
+        vacuum = pkgs.vacuum-go;
         xmllint = pkgs.libxml2.bin;
       };
 
