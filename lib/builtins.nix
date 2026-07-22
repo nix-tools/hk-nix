@@ -90,9 +90,9 @@
         just_format = pkgs.just;
         luacheck = pkgs.luaPackages.luacheck;
         markdown_lint = pkgs.markdownlint-cli;
-        mix_compile = pkgs.elixir;
-        mix_fmt = pkgs.elixir;
-        mix_test = pkgs.elixir;
+        mix_compile = pkgs.beamPackages.elixir;
+        mix_fmt = pkgs.beamPackages.elixir;
+        mix_test = pkgs.beamPackages.elixir;
         nix_fmt = pkgs.nixfmt;
         nixpkgs_format = pkgs.nixpkgs-fmt;
         ox_lint = pkgs.oxlint;
