@@ -21,7 +21,7 @@
 
 let
   hk = inputs.hk;
-  inherit (config.flake.lib) mkHkCheck;
+  inherit (config.flake.lib) mkHkCheck mkHkBuiltins;
   overlay = config.flake.overlays.default;
 
   consumerModule =
@@ -39,7 +39,7 @@ let
               settings
               checkHook
               ;
-            schemaPath = "${hk}/pkl/Config.pkl";
+            hkSrc = hk;
           };
         in
         {
@@ -81,6 +81,18 @@ let
               description = "Hook run (read-only, over all files) by the `checks.hk` derivation.";
             };
 
+            builtins = lib.mkOption {
+              type = lib.types.lazyAttrsOf lib.types.raw;
+              readOnly = true;
+              description = ''
+                hk's builtin linters as overridable records, keyed by hk identifier
+                (underscored, e.g. `nix_fmt`). Use as
+                `steps.<step>.builtin = config.hk-nix.builtins.<name>;` and repin the
+                tool with `.override { package = ...; }`. The package resolves lazily,
+                so unreferenced builtins pull nothing into the closure.
+              '';
+            };
+
             check = lib.mkOption {
               type = lib.types.package;
               readOnly = true;
@@ -95,6 +107,10 @@ let
           };
 
           config = {
+            hk-nix.builtins = mkHkBuiltins {
+              inherit pkgs;
+              hkSrc = hk;
+            };
             hk-nix.check = result;
             hk-nix.shellHook = result.shellHook;
             checks.hk = result;

@@ -17,16 +17,30 @@
       package,
       src,
       settings,
-      schemaPath,
+      hkSrc,
       # Which hook the CI check derivation runs (read-only, over all files).
       checkHook ? "pre-commit",
     }:
     let
       lib = pkgs.lib;
-      inherit (config.flake.lib) renderHkPkl;
+      inherit (config.flake.lib) renderHkPkl mkPklBundle desugarBuiltins;
+
+      # Amends Config.pkl and imports Builtins.pkl from a store-path bundle (see
+      # pkl-bundle.nix), so builtin steps resolve `Builtins.*` offline in the
+      # check sandbox. The bundle pulls no linter packages into the closure.
+      pklBundle = mkPklBundle { inherit pkgs hkSrc; };
+
+      # Pinned `sh`+coreutils appended to each builtin step's PATH (see below).
+      basePath = lib.makeBinPath [
+        pkgs.bash
+        pkgs.coreutils
+      ];
 
       configFile = pkgs.writeText "hk.pkl" (renderHkPkl {
-        inherit schemaPath settings;
+        # Rewrite `{ builtin = ...; }` steps into `(Builtins.x) { ... }` amends.
+        settings = desugarBuiltins { inherit basePath; } settings;
+        schemaPath = "${pklBundle}/Config.pkl";
+        imports = [ "${pklBundle}/Builtins.pkl" ];
       });
 
       # CI half: copy the source into a sandbox, make a throwaway git repo with

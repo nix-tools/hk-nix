@@ -74,6 +74,75 @@ You may want to add the generated symlink to your `.gitignore`:
 /hk.pkl
 ```
 
+### Using builtin linters
+
+hk ships 140+ pre-configured linters and formatters as [builtins](https://hk.jdx.dev/builtins).
+`hk-nix` exposes each one as `config.hk-nix.builtins.<name>` — a record that already carries the
+builtin's glob patterns and commands and pins the tool from Nixpkgs. Reference a builtin instead of
+hand-writing `glob` + `check`/`fix`:
+
+```nix
+perSystem =
+  { config, pkgs, lib, ... }:
+  # `builtins` is an ordinary name in Nix, not a keyword, so it can be shadowed;
+  # nothing here calls a global builtin. Drop this line to keep the global.
+  let inherit (config.hk-nix) builtins; in
+  {
+    hk-nix.settings.hooks."pre-commit" = {
+      fix = true;
+      stash = "git";
+      steps = {
+        nix_fmt.builtin = builtins.nix_fmt;
+        gitleaks.builtin = builtins.gitleaks;
+        prettier.builtin = builtins.prettier;
+      };
+    };
+
+    devShells.default = pkgs.mkShell {
+      packages = [ config.hk-nix.package pkgs.git ];
+      shellHook = config.hk-nix.shellHook;
+    };
+  };
+```
+
+Each builtin is pinned by absolute `/nix/store` path (injected via the step's `PATH`), so the same
+tool runs in the dev shell and in `nix flake check` — no reliance on ambient `PATH`. Builtin names
+use the hk identifier (underscores), e.g. `nix_fmt`, `cargo_clippy`, `byte_order_marker`.
+
+#### Overriding a builtin
+
+Overrides fall on two independent axes:
+
+- **The tool** — repin the package (or its build) with `.override`:
+
+  ```nix
+  steps.gitleaks.builtin =
+    config.hk-nix.builtins.gitleaks.override { package = pkgs.gitleaks_8_18; };
+  ```
+
+- **The hk step** — amend `glob`, `batch`, `depends`, `profiles`, `env`, … with sibling fields on the
+  step; every key other than `builtin` is merged into the generated `(Builtins.<name>) { … }` amend:
+
+  ```nix
+  steps.gitleaks = {
+    builtin = config.hk-nix.builtins.gitleaks;
+    glob    = "src/**/*";
+    depends = "prettier";
+  };
+  ```
+
+Both at once:
+
+```nix
+steps.gitleaks = {
+  builtin = config.hk-nix.builtins.gitleaks.override { package = myGitleaks; };
+  glob    = "src/**/*";
+};
+```
+
+Builtins that run hk itself (e.g. `newlines`, `trailing_whitespace`, `byte_order_marker`) carry
+`package = null` and inject no `PATH` — hk is already the runner, so they add nothing to the closure.
+
 ## Options (`perSystem.hk-nix`)
 
 | Option | Type | Default | Description |
@@ -101,8 +170,10 @@ hk-nix.package = pkgs.hk;          # use nixpkgs' hk
   The dev shell puts it there; with [direnv](https://direnv.net) it is present
   for editors/terminals opened in the project too. Committing from a context
   with no `hk` on `PATH` (e.g. a GUI launched outside direnv) skips the hook.
-- Builtin linters (`Builtins.pkl`) are not supported yet. Declare steps
-  explicitly (`glob` + `check`/`fix` shell strings).
+- Builtin linters are available as `config.hk-nix.builtins.<name>` (see
+  [Using builtin linters](#using-builtin-linters)); the tool is pinned from
+  Nixpkgs and injected via the step's `PATH`. You can still declare steps
+  explicitly (`glob` + `check`/`fix` shell strings) for tools without a builtin.
 - `check`/`fix` are shell strings; the `Command { argv = ... }` form is not yet
   rendered.
 - Config is injected by symlinking hk.pkl; the `HK_FILE` env-var mechanism is

@@ -1,25 +1,14 @@
-# hk-nix dogfoods itself: its own git hooks are declared here in Nix and managed
-# by hk-nix (not lefthook-nix). Commands reference linters by absolute store
-# path so the exact same pinned tools run in the dev shell and in `nix flake
-# check`.
+# hk-nix dogfoods itself: its own git hooks are declared here in Nix and managed by hk-nix.
+# It uses hk's `nix_fmt` and `deadnix` builtins, each pinned from nixpkgs, so the same tools
+# run in the dev shell and in `nix flake check`.
 {
   perSystem =
-    { pkgs, lib, ... }:
+    { config, ... }:
     let
-      nixfmt = lib.getExe pkgs.nixfmt;
-      deadnix = lib.getExe pkgs.deadnix;
-
+      inherit (config.hk-nix) builtins;
       steps = {
-        nixfmt = {
-          glob = "*.nix";
-          check = "${nixfmt} --check {{files}}";
-          fix = "${nixfmt} {{files}}";
-        };
-        deadnix = {
-          glob = "*.nix";
-          check = "${deadnix} --fail {{files}}";
-          fix = "${deadnix} --edit {{files}}";
-        };
+        nix_fmt.builtin = builtins.nix_fmt;
+        deadnix.builtin = builtins.deadnix;
       };
     in
     {
