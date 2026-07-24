@@ -90,9 +90,9 @@ perSystem =
       fix = true;
       stash = "git";
       steps = {
-        nix_fmt.builtin = hk.nix_fmt;
-        gitleaks.builtin = hk.gitleaks;
-        prettier.builtin = hk.prettier;
+        betterleaks.builtin = hk.betterleaks;
+        actionlint.builtin = hk.actionlint;
+        shellcheck.builtin = hk.shellcheck;
       };
     };
 
