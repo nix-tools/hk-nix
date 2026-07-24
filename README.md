@@ -25,7 +25,7 @@ and `hk install` wires up git hooks.
 
 ## Usage
 
-A Nix flake that adds `hk-nix` as input, imports the `hk-nix` flake module, defines a `pre-commit` hook, adds `hk` and `git` to the devshell, and enables the `hk-nix` shellHook which activates when entering the devshell.
+A Nix flake that adds `hk-nix` as input, imports the `hk-nix` flake module, defines a `pre-commit` hook that runs [treefmt](https://github.com/numtide/treefmt-nix), adds `hk` and `git` to the devshell, and enables the `hk-nix` shellHook which activates when entering the devshell.
 
 Importing the flake module automatically sets `checks.hk`, so `nix flake check` runs the `pre-commit` hook read-only over all files.
 
@@ -36,26 +36,34 @@ Importing the flake module automatically sets `checks.hk`, so `nix flake check` 
     nixpkgs.url = "https://nixos.org/channels/nixpkgs-unstable/nixexprs.tar.xz";
     flake-parts.url = "github:hercules-ci/flake-parts";
 
+    treefmt-nix.url = "github:numtide/treefmt-nix";
+    treefmt-nix.inputs.nixpkgs.follows = "nixpkgs";
+
     hk-nix.url = "github:nix-tools/hk-nix";
     hk-nix.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs =
-    inputs@{ flake-parts, hk-nix, ... }:
+    inputs@{ flake-parts, hk-nix, treefmt-nix, ... }:
     flake-parts.lib.mkFlake { inherit inputs; } {
       systems = [ "x86_64-linux" "aarch64-darwin" ];
-      imports = [ hk-nix.flakeModules.default ];
+      imports = [ hk-nix.flakeModules.default treefmt-nix.flakeModule ];
 
       perSystem =
-        { config, pkgs, lib, ... }:
+        { config, pkgs, ... }:
         {
+          treefmt = {
+            projectRootFile = "flake.nix";
+            programs.nixfmt.enable = true;
+          };
+
           hk-nix.settings.hooks."pre-commit" = {
             fix = true;
             stash = "git";
-            steps.nixfmt = {
+            steps.treefmt = {
               glob = "*.nix";
-              check = "${lib.getExe pkgs.nixfmt} --check {{files}}";
-              fix = "${lib.getExe pkgs.nixfmt} {{files}}";
+              check = "${config.treefmt.build.wrapper}/bin/treefmt --fail-on-change --no-cache {{files}}";
+              fix = "${config.treefmt.build.wrapper}/bin/treefmt --no-cache {{files}}";
             };
           };
 
