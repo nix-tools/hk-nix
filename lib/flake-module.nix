@@ -1,7 +1,7 @@
 # The consumer-facing flake-parts module, exported as
 # `hk-nix.flakeModules.default`. It is closed over hk-nix's own `hk` input (and
-# its `flake.lib.mkHkCheck` / `flake.overlays.default`) so a consumer gets the
-# pinned schema + default binary regardless of their inputs.
+# its `flake.lib.mkHkCheck`) so a consumer gets the pinned Config.pkl schema
+# regardless of their inputs; the default binary comes from their nixpkgs.
 #
 # Import it and declare hooks:
 #
@@ -22,7 +22,6 @@
 let
   hk = inputs.hk;
   inherit (config.flake.lib) mkHkCheck mkHkBuiltins;
-  overlay = config.flake.overlays.default;
 
   consumerModule =
     { lib, self, ... }:
@@ -46,12 +45,12 @@ let
           options.hk-nix = {
             package = lib.mkOption {
               type = lib.types.package;
-              default = (overlay pkgs pkgs).hk;
-              defaultText = lib.literalMD "hk from hk-nix's overlay (pinned `jdx/hk` input)";
+              default = pkgs.hk;
+              defaultText = lib.literalMD "`pkgs.hk` (nixpkgs)";
               description = ''
-                The hk package to use. Defaults to hk-nix's own overlay build of the
-                pinned jdx/hk input. Override with `pkgs.hk` (nixpkgs) or any other
-                build to choose a different source.
+                The hk package to use. Defaults to nixpkgs' hk. To build from the
+                pinned jdx/hk input instead, apply hk-nix's `overlays.default` (which
+                redefines `pkgs.hk` from that input), or set this to any other build.
               '';
             };
 

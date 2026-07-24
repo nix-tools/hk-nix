@@ -154,7 +154,7 @@ Builtins that run hk itself (e.g. `newlines`, `trailing_whitespace`, `byte_order
 | Option | Type | Default | Description |
 | --- | --- | --- | --- |
 | `settings` | attrs | `{ }` | The hk.pkl top-level (e.g. `{ hooks = { ... }; }`). |
-| `package` | package | overlay's `hk` | The hk binary. Override with `pkgs.hk` (nixpkgs) or another build. |
+| `package` | package | `pkgs.hk` (nixpkgs) | The hk binary. Apply hk-nix's overlay to pin the `jdx/hk` build, or set another build. |
 | `src` | path | `self` | Project root copied into the check derivation. |
 | `checkHook` | str | `"pre-commit"` | Hook run (read-only) by `checks.hk`. |
 | `shellHook` | str | *(read-only)* | Symlinks hk.pkl and installs the git hooks. |
@@ -162,12 +162,14 @@ Builtins that run hk itself (e.g. `newlines`, `trailing_whitespace`, `byte_order
 
 ### Choosing the hk binary
 
-hk-nix ships `overlays.default` (defines `pkgs.hk`, built from the pinned
-`jdx/hk` input) and `hk-nix.package` defaults to it. To use nixpkgs' hk instead:
+`hk-nix.package` defaults to nixpkgs' `pkgs.hk`. hk-nix also ships
+`overlays.default`, which redefines `pkgs.hk` built from the pinned `jdx/hk`
+input (so the binary matches the Config.pkl schema hk-nix amends). To pin that
+build instead of nixpkgs':
 
 ```nix
-nixpkgs.overlays = [ ];            # don't apply hk-nix's overlay
-hk-nix.package = pkgs.hk;          # use nixpkgs' hk
+nixpkgs.overlays = [ inputs.hk-nix.overlays.default ];   # pin hk to the jdx/hk input
+# hk-nix.package now resolves to that pinned pkgs.hk
 ```
 
 ## Limitations
