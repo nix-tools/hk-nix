@@ -84,15 +84,15 @@ hand-writing `glob` + `check`/`fix`:
 ```nix
 perSystem =
   { config, pkgs, lib, ... }:
-  let hk-builtins = config.hk-nix.builtins; in
+  let hk = config.hk-nix.builtins; in
   {
     hk-nix.settings.hooks."pre-commit" = {
       fix = true;
       stash = "git";
       steps = {
-        nix_fmt.builtin = hk-builtins.nix_fmt;
-        gitleaks.builtin = hk-builtins.gitleaks;
-        prettier.builtin = hk-builtins.prettier;
+        nix_fmt.builtin = hk.nix_fmt;
+        gitleaks.builtin = hk.gitleaks;
+        prettier.builtin = hk.prettier;
       };
     };
 
