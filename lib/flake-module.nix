@@ -54,6 +54,17 @@ let
               '';
             };
 
+            wrappedPackage = lib.mkOption {
+              type = lib.types.package;
+              readOnly = true;
+              description = ''
+                The hk binary to put on PATH (e.g. in the dev shell). When hk-nix's
+                overlay is active, this is `package` wrapped to bake the generated
+                hk.pkl in as HK_FILE, so hk reads its config from the store and no
+                working-tree hk.pkl is symlinked; otherwise it equals `package`.
+              '';
+            };
+
             src = lib.mkOption {
               type = lib.types.path;
               default = self;
@@ -111,6 +122,7 @@ let
               hkSrc = hk;
             };
             hk-nix.check = result;
+            hk-nix.wrappedPackage = result.runtimeHk;
             hk-nix.shellHook = result.shellHook;
             checks.hk = result;
           };

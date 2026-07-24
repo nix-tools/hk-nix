@@ -8,7 +8,7 @@
     {
       devShells.default = pkgs.mkShell {
         packages = [
-          config.hk-nix.package
+          config.hk-nix.wrappedPackage
           pkgs.git
           pkgs.just
           pkgs.nixfmt
