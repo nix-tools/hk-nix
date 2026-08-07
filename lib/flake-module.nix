@@ -1,7 +1,7 @@
 # The consumer-facing flake-parts module, exported as
-# `hk-nix.flakeModules.default`. It is closed over hk-nix's own `hk` input (and
-# its `flake.lib.mkHkCheck`) so a consumer gets the pinned Config.pkl schema
-# regardless of their inputs; the default binary comes from their nixpkgs.
+# `hk-nix.flakeModules.default`. It is closed over hk-nix's `flake.lib.mkHkCheck`,
+# so the renderer travels with the module; the binary and the Config.pkl schema
+# both come from the consumer's `pkgs.hk`, which keeps the two in step.
 #
 # Import it and declare hooks:
 #
@@ -17,10 +17,9 @@
 # hk-nix also dogfoods this module on itself: `imports = [ consumerModule ]`
 # below activates the `hk-nix.*` options and `checks.hk` output in hk-nix's own
 # flake, so hooks.nix can declare hk-nix's hooks and `nix flake check` runs them.
-{ config, inputs, ... }:
+{ config, ... }:
 
 let
-  hk = inputs.hk;
   inherit (config.flake.lib) mkHkCheck mkHkBuiltins;
 
   consumerModule =
@@ -37,8 +36,8 @@ let
               src
               settings
               checkHook
+              hkSrc
               ;
-            hkSrc = hk;
           };
         in
         {
@@ -48,9 +47,21 @@ let
               default = pkgs.hk;
               defaultText = lib.literalMD "`pkgs.hk` (nixpkgs)";
               description = ''
-                The hk package to use. Defaults to nixpkgs' hk. To build from the
-                pinned jdx/hk input instead, apply hk-nix's `overlays.default` (which
-                redefines `pkgs.hk` from that input), or set this to any other build.
+                The hk package to use, and the source of the Pkl schema hk-nix amends
+                (see `hkSrc`). Defaults to nixpkgs' hk; to use another build, either
+                set this or define `pkgs.hk` in an overlay of your own.
+              '';
+            };
+
+            hkSrc = lib.mkOption {
+              type = lib.types.path;
+              default = cfg.package.src;
+              defaultText = lib.literalExpression "package.src";
+              description = ''
+                The hk source tree supplying the Pkl schema (Config.pkl) and the
+                builtin definitions. Defaults to `package`'s own source, so schema and
+                binary cannot drift apart; set it only when `package` has no `src`
+                (e.g. a prebuilt release binary).
               '';
             };
 
@@ -119,7 +130,7 @@ let
           config = {
             hk-nix.builtins = mkHkBuiltins {
               inherit pkgs;
-              hkSrc = hk;
+              inherit (cfg) hkSrc;
             };
             hk-nix.check = result;
             hk-nix.wrappedPackage = result.runtimeHk;

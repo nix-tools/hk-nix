@@ -3,7 +3,7 @@
 # check` derivation and the carrier of the `.shellHook` used to install hooks in
 # a dev shell. Same config, run the same way locally and in CI.
 #
-#   mkHkCheck { pkgs, package, src, settings, schemaPath, checkHook ? "pre-commit" }
+#   mkHkCheck { pkgs, package, src, settings, hkSrc, checkHook ? "pre-commit" }
 #
 # The Nix -> Pkl renderer is taken from `flake.lib.renderHkPkl` (see
 # render-pkl.nix); `config` here is hk-nix's own, captured by closure, so the

@@ -28,7 +28,9 @@
       lib = pkgs.lib;
       dash = lib.replaceStrings [ "_" ] [ "-" ];
 
-      # Builtin identifiers (underscored), read from the pinned store input.
+      # Builtin identifiers (underscored), read from the hk source tree. Reading it at
+      # evaluation time means import-from-derivation when `hkSrc` is a fetched source
+      # (e.g. nixpkgs' `pkgs.hk.src`) — unavoidable, since the names are option keys.
       names = map (n: lib.replaceStrings [ "-" ] [ "_" ] (lib.removeSuffix ".pkl" n)) (
         lib.filter (n: lib.hasSuffix ".pkl" n) (lib.attrNames (builtins.readDir "${hkSrc}/pkl/builtins"))
       );
