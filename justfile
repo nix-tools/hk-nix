@@ -21,7 +21,7 @@ validate:
           config.allowUnfree = true;
         };
         lib = pkgs.lib;
-        bi = flake.lib.mkHkBuiltins { inherit pkgs; hkSrc = flake.inputs.hk; };
+        bi = flake.lib.mkHkBuiltins { inherit pkgs; hkSrc = pkgs.hk.src; };
         # Pass if the package is null (hk-native, needs none) or its derivation
         # evaluates; tryEval turns a throwing or absent package into a failure.
         ok = name: (builtins.tryEval (
