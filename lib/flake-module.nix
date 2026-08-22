@@ -11,7 +11,10 @@
 #       glob = "*.nix";
 #       fix  = "${lib.getExe pkgs.nixfmt} {{files}}";
 #     };
-#     devShells.default = pkgs.mkShell { inherit (config.hk-nix) shellHook; };
+#     devShells.default = pkgs.mkShell {
+#       packages = [ config.hk-nix.hk ];
+#       inherit (config.hk-nix) shellHook;
+#     };
 #   };
 #
 # hk-nix also dogfoods this module on itself: `imports = [ consumerModule ]`
@@ -65,14 +68,26 @@ let
               '';
             };
 
-            wrappedPackage = lib.mkOption {
+            hk = lib.mkOption {
               type = lib.types.package;
               readOnly = true;
               description = ''
-                The hk binary to put on PATH (e.g. in the dev shell). When hk-nix's
-                overlay is active, this is `package` wrapped to bake the generated
-                hk.pkl in as HK_FILE, so hk reads its config from the store and no
-                working-tree hk.pkl is symlinked; otherwise it equals `package`.
+                The hk to put on the dev shell PATH: `package` with the generated
+                hk.pkl baked in as HK_FILE, so hk reads its config from the store and
+                nothing is written into the working tree. Equivalent to
+                `pkgs.hk.withConfig config.hk-nix.configFile` under hk-nix's overlay,
+                but computed without it, so the module works either way.
+              '';
+            };
+
+            configFile = lib.mkOption {
+              type = lib.types.package;
+              readOnly = true;
+              description = ''
+                The generated hk.pkl, rendered from `settings` into the store. Pass it
+                to `pkgs.hk.withConfig` to build the same hk this module exposes as
+                `hk`, e.g. when placing it in a system configuration rather than a
+                dev shell.
               '';
             };
 
@@ -123,7 +138,7 @@ let
             shellHook = lib.mkOption {
               type = lib.types.str;
               readOnly = true;
-              description = "Shell hook that symlinks hk.pkl and installs the git hooks.";
+              description = "Shell hook that installs the git hooks.";
             };
           };
 
@@ -133,7 +148,8 @@ let
               inherit (cfg) hkSrc;
             };
             hk-nix.check = result;
-            hk-nix.wrappedPackage = result.runtimeHk;
+            hk-nix.hk = result.runtimeHk;
+            hk-nix.configFile = result.configFile;
             hk-nix.shellHook = result.shellHook;
             checks.hk = result;
           };
