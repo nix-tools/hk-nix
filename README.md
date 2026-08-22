@@ -24,8 +24,12 @@ This means evaluation is fully offline (no `package://` download) and works insi
 
 It also means the schema always comes from the same hk that runs it.
 
-`hk install` wires up the git hooks, hk finds the generated config either baked into the binary as `HK_FILE`
-(when hk-nix's overlay is active) or, failing that, symlinked into the repo root as `hk.pkl`.
+The generated config is baked into a copy of the hk binary as `HK_FILE`, so it lives entirely in the
+Nix store: no hk.pkl in your working tree, and nothing to `.gitignore`.
+
+`hk install` wires up the git hooks, and hk-nix then rewrites each installed hook to name that
+binary by absolute store path. The hooks therefore fire from anywhere — an editor, a GUI client, a
+plain terminal — and do not depend on the dev shell being active.
 
 hk-nix defaults to using hk's support for [**git 2.54+ config-based hooks**][git-config-hooks].
 
@@ -36,7 +40,6 @@ hk-nix defaults to using hk's support for [**git 2.54+ config-based hooks**][git
 A Nix flake that adds hk-nix as input, imports the hk-nix flake module, defines a `pre-commit` hook that runs [treefmt](https://github.com/numtide/treefmt-nix), adds `hk` and `git` to the devshell, and enables the hk-nix shellHook which activates when entering the devshell.
 
 Importing the flake module automatically sets `checks.hk`, so `nix flake check` runs the `pre-commit` hook read-only over all files.
-
 
 ```nix
 {
@@ -76,7 +79,7 @@ Importing the flake module automatically sets `checks.hk`, so `nix flake check` 
           };
 
           devShells.default = pkgs.mkShell {
-            packages = [ config.hk-nix.wrappedPackage pkgs.git ];
+            packages = [ config.hk-nix.hk pkgs.git ];
             shellHook = config.hk-nix.shellHook;
           };
         };
@@ -84,13 +87,7 @@ Importing the flake module automatically sets `checks.hk`, so `nix flake check` 
 }
 ```
 
-Without the overlay, hk-nix symlinks the generated config into the repo root, so add it to your `.gitignore`:
-
-```gitignore
-/hk.pkl
-```
-
-With the overlay active, `HK_FILE` is baked into the binary and no `hk.pkl` is written, so this step is unnecessary.
+No overlay is needed for this, and nothing is written into your working tree.
 
 ### Using builtin linters
 
@@ -119,7 +116,7 @@ perSystem =
     };
 
     devShells.default = pkgs.mkShell {
-      packages = [ config.hk-nix.wrappedPackage pkgs.git ];
+      packages = [ config.hk-nix.hk pkgs.git ];
       shellHook = config.hk-nix.shellHook;
     };
   };
@@ -157,30 +154,35 @@ steps.gitleaks = {
 };
 ```
 
-hk comes with builtins that live inside `hk` that have a `package = null` and hk-nix injects no `PATH` for them.
+Some builtins are implemented inside hk itself and pin no package; they run `hk` directly, which is
+on the step's `PATH` for that reason.
 
 ## Options (`perSystem.hk-nix`)
 
 | Option | Type | Default | Description |
 | --- | --- | --- | --- |
 | `settings` | attrs | `{ }` | The hk.pkl top-level (e.g. `{ hooks = { ... }; }`). |
-| `package` | package | `pkgs.hk` (nixpkgs) | The hk binary, and the source of the amended Pkl schema. |
-| `wrappedPackage` | package | *(read-only)* | The hk to put on PATH: `package`, wrapped to bake in `HK_FILE` when the overlay is active. |
+| `package` | package | `pkgs.hk` (nixpkgs) | The hk build to wrap, and the source of the amended Pkl schema. |
 | `hkSrc` | path | `package.src` | hk source tree supplying `Config.pkl` and the builtin definitions. |
 | `src` | path | `self` | Project root copied into the check derivation. |
 | `checkHook` | str | `"pre-commit"` | Hook run (read-only) by `checks.hk`. |
-| `shellHook` | str | *(read-only)* | Installs the git hooks (and symlinks hk.pkl unless `HK_FILE` is baked in). |
+| `hk` | package | *(read-only)* | `package` with the generated config baked in as `HK_FILE`. Put this on PATH. |
+| `configFile` | package | *(read-only)* | The generated hk.pkl in the store. |
+| `builtins` | attrs | *(read-only)* | hk's builtins as overridable records, keyed by hk identifier. |
+| `shellHook` | str | *(read-only)* | Installs the git hooks. |
 | `check` | package | *(read-only)* | The `checks.hk` derivation. |
 
-### Baking the config with the overlay
+## Where hk carries its config
 
-hk-nix ships `overlays.default`, which adds one thing to `pkgs.hk`: the ability to carry the
-generated hk.pkl, baked in as `HK_FILE`.
+An hk on your `PATH` can be doing one of two jobs: running one project's hooks, or being the hk CLI.
+Only the first wants a config baked in. hk-nix keeps them separate rather than guessing, so `pkgs.hk`
+is always the plain CLI and a config-carrying hk is something you ask for.
 
-Config then lives entirely in the Nix store — hk reads it from there, no `hk.pkl` is symlinked into
-the repo, and there is nothing to `.gitignore`.
+Inside the flake module, `config.hk-nix.hk` is that ask, and it needs no overlay.
 
-Applying the overlay is how you opt in:
+Elsewhere — a NixOS or home-manager configuration, or no flakes at all — apply `overlays.default`,
+which adds one thing to `pkgs.hk`: a `withConfig` function taking an hk.pkl and returning an hk with
+it baked in.
 
 ```nix
 perSystem =
@@ -193,13 +195,18 @@ perSystem =
   };
 ```
 
-The overlay picks no build of hk; it only ever touches `passthru`, so an overlaid `pkgs.hk` is the
+The two then coexist, each spelling saying which job it is for:
+
+```nix
+environment.systemPackages = [ pkgs.hk ];                              # the CLI
+devShells.default.packages = [ (pkgs.hk.withConfig ./hk.pkl) ];        # a hook runner
+```
+
+To pass the config the flake module generated rather than a handwritten file, use
+`pkgs.hk.withConfig config.hk-nix.configFile`, which is exactly what `config.hk-nix.hk` is.
+
+The overlay picks no build of hk and only ever touches `passthru`, so an overlaid `pkgs.hk` is the
 same derivation, and the same binary cache hit, as before.
-
-Without it, hk-nix cannot assume `HK_FILE` is set and falls back to the symlink.
-
-Put `config.hk-nix.wrappedPackage` (not `package`) on PATH, so the baked binary is the one that runs
-the hooks.
 
 ### Changing the hk binary
 
@@ -222,10 +229,9 @@ perSystem =
   };
 ```
 
-Order matters: hk-nix's overlay layers `HK_FILE` baking onto whatever `pkgs.hk` it finds.
+Order matters: hk-nix's overlay layers `withConfig` onto whatever `pkgs.hk` it finds.
 
-You can also set `hk-nix.package` directly, e.g. to `inputs.hk.packages.${system}.default`, but that
-bypasses `pkgs.hk` and gets no `HK_FILE` baking.
+You can also set `hk-nix.package` directly, e.g. to `inputs.hk.packages.${system}.default`.
 
 Either way `hkSrc` follows the package, so a newer hk brings its own schema and builtins along.
 
@@ -240,12 +246,29 @@ overlays = [
 ];
 ```
 
+## Without flakes
+
+The overlay is plain Nix, so it needs no flake evaluation:
+
+```nix
+let
+  hk-nix = import (fetchTarball "https://github.com/nix-tools/hk-nix/archive/main.tar.gz");
+  pkgs = import <nixpkgs> { overlays = [ hk-nix.overlays.default ]; };
+in
+pkgs.mkShell {
+  packages = [ (pkgs.hk.withConfig ./hk.pkl) ];
+}
+```
+
+Declaring hooks as a Nix attrset is a flake module feature, so here you write hk.pkl by hand and
+hand it to `withConfig`. What you get is the baked `HK_FILE`, and with it a config that lives in the
+store rather than the working tree.
+
 ## Limitations
 
-- The installed hook runs `hk`, so `hk` must be on `PATH` when git fires it.
-  The dev shell puts it there; with [direnv](https://direnv.net) it is present
-  for editors/terminals opened in the project too. Committing from a context
-  with no `hk` on `PATH` (e.g. a GUI launched outside direnv) skips the hook.
+- The installed hook names hk by absolute store path, so it survives having no `hk` on `PATH`. The
+  cost is that garbage-collecting that path breaks the hook until you re-enter the dev shell, which
+  rewrites it. It fails loudly when this happens.
 - Builtin linters are available as `config.hk-nix.builtins.<name>` (see
   [Using builtin linters](#using-builtin-linters)); the tool is pinned from
   Nixpkgs and injected via the step's `PATH`. You can still declare steps
@@ -255,6 +278,5 @@ overlays = [
   nixpkgs' `pkgs.hk.src`. Declaring steps explicitly needs no IFD.
 - `check`/`fix` are shell strings; the `Command { argv = ... }` form is not yet
   rendered.
-- With hk-nix's overlay, config lives entirely in a Nix store derivation via a baked-in `HK_FILE`;
-  without it, hk-nix falls back to symlinking a `.gitignore`'d hk.pkl into the working tree.
-- Per-repo install only (no `hk install --global`).
+- Per-repo install only (no `hk install --global`). hk-nix passes `--force-local`, so a global hk
+  install does not stop it from managing this repo's hooks.
