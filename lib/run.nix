@@ -35,8 +35,13 @@
       # check sandbox. The bundle pulls no linter packages into the closure.
       pklBundle = mkPklBundle { inherit pkgs hkSrc; };
 
-      # Pinned `sh`+coreutils appended to each builtin step's PATH (see below).
+      # Pinned `sh`+coreutils appended to each builtin step's PATH (see below). hk is
+      # in there because builtins like check_conventional_commit shell out to `hk util`,
+      # and the hook runs with whatever PATH git had, which need not include hk. The
+      # unwrapped `package` is used, not runtimeHk: it would be a cycle, and a child hk
+      # inherits HK_FILE from the parent's environment anyway.
       basePath = lib.makeBinPath [
+        package
         pkgs.bash
         pkgs.coreutils
       ];
@@ -94,8 +99,7 @@
 
       # Dev half: (re)install git hooks. On git 2.54+ `hk install` writes config-based
       # hooks into .git/config and leaves .git/hooks/ untouched; we prepend a recent git
-      # to PATH to guarantee that path is taken, and never pass --legacy. The installed
-      # hook invokes bare `hk`, so `runtimeHk` must be the hk on PATH.
+      # to PATH to guarantee that path is taken, and never pass --legacy.
       #
       # A store-path marker under the git dir records the install. It holds runtimeHk,
       # whose path embeds the config, so a config change re-triggers. Reinstalling only
@@ -117,9 +121,21 @@
           else
             _log "hk-nix: updating $PWD hk configuration"
             hk uninstall >/dev/null 2>&1 || true
-            # Record the marker only on a clean install, so a failure retries next time.
-            if hk install && [ -n "$marker" ]; then
-              printf '%s' "${runtimeHk}" >"$marker"
+            # --force-local: a global `hk install` otherwise makes this a silent skip,
+            # leaving the repo on hooks that call a bare `hk` with no config.
+            if hk install --force-local; then
+              # hk writes each command as a bare `hk`, resolved from PATH when the hook
+              # fires. Outside the dev shell that is a different hk with no HK_FILE, and
+              # `--from-hook` exits 0 without output when it finds no config, so hooks
+              # would silently pass. Rewrite just the binary to an absolute store path
+              # and let hk keep deciding which hooks and events to install.
+              git config --local --get-regexp '^hook\.hk-[^.]*\.command$' |
+                while read -r _key _cmd; do
+                  git config --local "$_key" \
+                    "$(printf '%s' "$_cmd" | sed "s#|| hk #|| ${runtimeHk}/bin/hk #")"
+                done
+              # Record the marker only on a clean install, so a failure retries next time.
+              if [ -n "$marker" ]; then printf '%s' "${runtimeHk}" >"$marker"; fi
             fi
           fi
         fi

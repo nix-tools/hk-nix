@@ -35,8 +35,9 @@
         lib.filter (n: lib.hasSuffix ".pkl" n) (lib.attrNames (builtins.readDir "${hkSrc}/pkl/builtins"))
       );
 
-      # Builtins whose command runs hk itself (`hk util ...`, `hk test`): the tool
-      # is hk, already the runner, so no package is pinned and no PATH is injected.
+      # Builtins whose command runs hk itself (`hk util ...`, `hk test`): the tool is
+      # hk, so no package is pinned and the step falls back to the base PATH, which
+      # carries hk for exactly this reason (see run.nix).
       hkNativeBuiltins = [
         "byte_order_marker"
         "check_added_large_files"
@@ -196,10 +197,12 @@
             b = step.builtin;
             overrides = removeAttrs step [ "builtin" ];
             userEnv = overrides.env or { };
-            # Pin the tool by store path (plus the base for `sh`); a null package
-            # (hk-native builtin) injects no PATH — hk is already the runner. An
+            # Pin the tool by store path (plus the base for `sh` and for hk itself,
+            # which a null package — an hk-native builtin — shells out to). An
             # explicit env is kept, with the pin taking precedence.
-            env = if b.package == null then userEnv else userEnv // { PATH = "${b.package}/bin:${basePath}"; };
+            env = userEnv // {
+              PATH = if b.package == null then basePath else "${b.package}/bin:${basePath}";
+            };
             base = removeAttrs overrides [ "env" ];
           in
           (if env == { } then base else base // { inherit env; })
