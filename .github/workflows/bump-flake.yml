@@ -1,0 +1,44 @@
+# Weekly flake.lock bump. Nixpkgs supplies both hk and the Config.pkl schema
+# hk-nix amends, so a bump moves the two together and the check is what confirms
+# they still agree. Pushes straight to the default branch, but only if it passes.
+name: bump-flake
+
+on:
+  schedule:
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bump-flake
+
+jobs:
+  bump-flake:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/nix
+
+      - name: nix flake update
+        id: update
+        run: |
+          nix flake update 2>&1 | tee update.log
+          bumped=$(sed -n "s/.*Updated input '\([^']*\)'.*/\1/p" update.log | paste -sd, - | sed 's/,/, /g')
+          rm update.log
+          echo "bumped=$bumped" >>"$GITHUB_OUTPUT"
+
+      - name: nix flake check
+        if: steps.update.outputs.bumped != ''
+        run: nix flake check -L
+
+      - name: Commit and push
+        if: steps.update.outputs.bumped != ''
+        env:
+          BUMPED: ${{ steps.update.outputs.bumped }}
+        run: |
+          git config user.name "Simon Shine"
+          git config user.email "simon@simonshine.dk"
+          git commit -m "chore(flake): bump $BUMPED" flake.lock
+          git push
