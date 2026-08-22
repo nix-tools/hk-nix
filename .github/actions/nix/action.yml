@@ -1,0 +1,11 @@
+# Nix setup shared by every workflow: one place to pin the installer and to hang
+# a binary cache off once the from-source hk build gets tiresome. Callers still
+# run actions/checkout themselves — a local action only resolves once the repo is
+# on disk, so it cannot check out the repo it lives in.
+name: nix
+description: Install Nix with flakes enabled.
+
+runs:
+  using: composite
+  steps:
+    - uses: DeterminateSystems/nix-installer-action@main
