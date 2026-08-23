@@ -17,15 +17,13 @@ To get started, read [Git config-based hooks with hk-nix][getting-started].
 
 hk is configured with [Pkl](https://pkl-lang.org) (via the hk.pkl file).
 
-hk-nix generates that hk.pkl file from a Nix attrset and points its `amends` at hk's `Config.pkl`
-schema, taken from the hk package's own source at an absolute `/nix/store` path.
+hk-nix generates that hk.pkl file from a Nix attrset.
 
 This means evaluation is fully offline (no `package://` download) and works inside the `nix flake check` sandbox.
 
-It also means the schema always comes from the same hk that runs it.
-
-The generated config is baked into a copy of the hk binary as `HK_FILE`, so it lives entirely in the
-Nix store: no hk.pkl in your working tree, and nothing to `.gitignore`.
+The generated config is either dumped into a symlinked hk.pkl file, or is baked into the hk binary
+as `HK_FILE`, so it lives entirely in the Nix store: no hk.pkl in your working tree, and nothing to
+`.gitignore`.
 
 `hk install` wires up the git hooks, and hk-nix then rewrites each installed hook to name that
 binary by absolute store path. The hooks therefore fire from anywhere — an editor, a GUI client, a
@@ -37,7 +35,9 @@ hk-nix defaults to using hk's support for [**git 2.54+ config-based hooks**][git
 
 ## Example usage
 
-A Nix flake that adds hk-nix as input, imports the hk-nix flake module, defines a `pre-commit` hook that runs [treefmt](https://github.com/numtide/treefmt-nix), adds `hk` and `git` to the devshell, and enables the hk-nix shellHook which activates when entering the devshell.
+A Nix flake that adds hk-nix as input, imports the hk-nix flake module, defines a `pre-commit` hook
+that runs [treefmt](https://github.com/numtide/treefmt-nix), adds `hk` and `git` to the devshell,
+and enables the hk-nix shellHook which activates when entering the devshell.
 
 Importing the flake module automatically sets `checks.hk`, so `nix flake check` runs the `pre-commit` hook read-only over all files.
 
@@ -87,8 +87,6 @@ Importing the flake module automatically sets `checks.hk`, so `nix flake check` 
 }
 ```
 
-No overlay is needed for this, and nothing is written into your working tree.
-
 ### Using builtin linters
 
 hk ships 140+ pre-configured linters and formatters as [builtins](https://hk.jdx.dev/builtins).
@@ -96,7 +94,7 @@ hk-nix exposes each one as `config.hk-nix.builtins.<name>` — a record that alr
 builtin's glob patterns and commands and pins the tool from Nixpkgs. Reference a builtin instead of
 hand-writing `glob` + `check`/`fix`:
 
-> ***Note:** Not all builtin hooks are [vendored via nixpkgs][vendored-hooks]; some may fail.*
+> ***Note:** Not all builtin hooks are [vendored via nixpkgs][vendored-hooks]; some may fail unless you vendor them.*
 
 [vendored-hooks]: https://github.com/nix-tools/hk-nix/issues/1
 
@@ -128,7 +126,7 @@ use the hk identifier (underscores), e.g. `nix_fmt`, `cargo_clippy`, `byte_order
 
 #### Overriding a builtin
 
-You can override the builtin package via `.override { package = ...; }`:
+You can override a builtin package via `.override { package = ...; }`:
 
 ```nix
 steps.gitleaks.builtin =
@@ -172,7 +170,17 @@ on the step's `PATH` for that reason.
 | `shellHook` | str | *(read-only)* | Installs the git hooks. |
 | `check` | package | *(read-only)* | The `checks.hk` derivation. |
 
-## Where hk carries its config
+## `HK_FILE`
+
+hk normally uses a file called hk.pkl, which hk-nix can generate from the `settings` options.
+
+The location of this file defaults to the project root, but can be tweaked with the `HK_FILE` environment variable.
+
+hk-nix can bake this environment variable into the `hk` binary in two ways, so that you don't need to gitignore it.
+
+Generally, there are two ways to do this:
+
+1. Add the package `config.hk-nix.hk` instead of `pkgs.hk` to your `devshell.packages`
 
 An hk on your `PATH` can be doing one of two jobs: running one project's hooks, or being the hk CLI.
 Only the first wants a config baked in. hk-nix keeps them separate rather than guessing, so `pkgs.hk`
@@ -267,16 +275,8 @@ store rather than the working tree.
 ## Limitations
 
 - The installed hook names hk by absolute store path, so it survives having no `hk` on `PATH`. The
-  cost is that garbage-collecting that path breaks the hook until you re-enter the dev shell, which
-  rewrites it. It fails loudly when this happens.
-- Builtin linters are available as `config.hk-nix.builtins.<name>` (see
-  [Using builtin linters](#using-builtin-linters)); the tool is pinned from
-  Nixpkgs and injected via the step's `PATH`. You can still declare steps
-  explicitly (`glob` + `check`/`fix` shell strings) for tools without a builtin.
-- Referencing a builtin reads the builtin list out of `hkSrc` during evaluation,
-  which is an import-from-derivation when `hkSrc` is a fetched source such as
-  nixpkgs' `pkgs.hk.src`. Declaring steps explicitly needs no IFD.
-- `check`/`fix` are shell strings; the `Command { argv = ... }` form is not yet
-  rendered.
-- Per-repo install only (no `hk install --global`). hk-nix passes `--force-local`, so a global hk
-  install does not stop it from managing this repo's hooks.
+  downside is that garbage-collecting that path breaks the hook until you re-enter the dev shell.
+- Referencing a builtin reads the builtin list out of `hkSrc` during evaluation, which is an
+  import-from-derivation (IFD) when `hkSrc` is a fetched source such as nixpkgs' `pkgs.hk.src`.
+  Declaring steps explicitly needs no IFDs.
+- `check`/`fix` are shell strings; the `Command { argv = ... }` form is not yet rendered.

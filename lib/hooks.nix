@@ -1,6 +1,3 @@
-# hk-nix dogfoods itself: its own git hooks are declared here in Nix and managed by hk-nix.
-# Formatting runs the treefmt-nix wrapper (nixfmt + deadnix, see treefmt.nix) by absolute store
-# path, so the same formatters run in the dev shell and in `nix flake check`.
 {
   perSystem =
     { config, ... }:

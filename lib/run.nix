@@ -1,13 +1,9 @@
-# Core of hk-nix, exposed as `flake.lib.mkHkCheck` and mirroring lefthook.nix's
-# lib/config/default.nix: it returns a single value that is BOTH the `nix flake
-# check` derivation and the carrier of the `.shellHook` used to install hooks in
-# a dev shell. Same config, run the same way locally and in CI.
+# Core of hk-nix, exposed as `flake.lib.mkHkCheck`: it returns a single value that is BOTH the `nix
+# flake check` derivation and the carrier of the `.shellHook` used to install hooks in a dev shell.
 #
-#   mkHkCheck { pkgs, package, src, settings, hkSrc, checkHook ? "pre-commit" }
-#
-# The Nix -> Pkl renderer is taken from `flake.lib.renderHkPkl` (see
-# render-pkl.nix); `config` here is hk-nix's own, captured by closure, so the
-# renderer travels with mkHkCheck into a consumer's flake unchanged.
+# ```nix
+# mkHkCheck { pkgs, package, src, settings, hkSrc, checkHook ? "pre-commit" }
+# ```
 { config, ... }:
 
 {
@@ -18,7 +14,6 @@
       src,
       settings,
       hkSrc,
-      # Which hook the CI check derivation runs (read-only, over all files).
       checkHook ? "pre-commit",
     }:
     let
@@ -30,16 +25,17 @@
         withHkConfig
         ;
 
-      # Amends Config.pkl and imports Builtins.pkl from a store-path bundle (see
-      # pkl-bundle.nix), so builtin steps resolve `Builtins.*` offline in the
-      # check sandbox. The bundle pulls no linter packages into the closure.
+      # Amends Config.pkl and imports Builtins.pkl from a store-path bundle.
+      #
+      # The bundle pulls no linter packages into the closure.
       pklBundle = mkPklBundle { inherit pkgs hkSrc; };
 
       # Pinned `sh`+coreutils appended to each builtin step's PATH (see below). hk is
-      # in there because builtins like check_conventional_commit shell out to `hk util`,
-      # and the hook runs with whatever PATH git had, which need not include hk. The
-      # unwrapped `package` is used, not runtimeHk: it would be a cycle, and a child hk
-      # inherits HK_FILE from the parent's environment anyway.
+      # in there because builtins like check_conventional_commit shell out to `hk util`.
+      #
+      # The unwrapped `package` is used, not runtimeHk: it would be an infinite cycle.
+      #
+      # A child hk process inherits HK_FILE from the parent's environment anyway.
       basePath = lib.makeBinPath [
         package
         pkgs.bash

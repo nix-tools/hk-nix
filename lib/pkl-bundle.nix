@@ -1,19 +1,19 @@
-# Bundles an hk source tree's Pkl into one importable store dir, exposed as
-# `flake.lib.mkPklBundle`. hk ships the 143 individual `pkl/builtins/*.pkl` files
-# but NOT the aggregated `Builtins.pkl` — that is a generated artifact (hk's
-# scripts/gen_builtins.py) and is gitignored, so it is absent from the source
-# tree. We synthesize an equivalent (no python, no pkl, no tools) and assemble a
-# directory that hk-nix's generated hk.pkl can amend (Config.pkl) and import
-# (Builtins.pkl) fully offline.
+# Bundles an hk source tree's Pkl into one importable store dir, exposed as `flake.lib.mkPklBundle`.
+# hk ships individual `pkl/builtins/*.pkl` files but not the aggregated `Builtins.pkl`. It is a
+# generated artifact (hk's scripts/gen_builtins.py) and is gitignored, so it is absent from the
+# source tree. hk-nix synthesizes an equivalent and assembles a directory that hk-nix's generated
+# hk.pkl can amend (Config.pkl) and import (Builtins.pkl) fully offline.
 #
-#   mkPklBundle { pkgs, hkSrc } -> derivation (a /nix/store dir)
+# ```nix
+# mkPklBundle { pkgs, hkSrc } -> derivation (a /nix/store dir)
+# ```
 #
-# The aggregation runs at build time, with `hkSrc` only interpolated into the
-# script: `hkSrc` is typically `pkgs.hk.src`, a fetched derivation, so listing its
-# builtins during evaluation would mean import-from-derivation.
+# The aggregation runs at build time, with `hkSrc` only interpolated into the script: `hkSrc` is
+# typically `pkgs.hk.src`, a fetched derivation, so listing its builtins during evaluation would
+# mean import-from-derivation.
 #
-# The bundle's closure is just itself plus the hk source: it references no linter
-# packages, so importing it never pulls the 143 tools into a check derivation.
+# The bundle's closure is just itself plus the hk source: it references no linter packages, so
+# importing it never pulls the 143 tools into a check derivation.
 { ... }:
 
 {

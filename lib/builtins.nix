@@ -1,21 +1,25 @@
-# The builtins registry and the settings desugaring that make hk's builtins
-# first-class, exposed as `flake.lib.mkHkBuiltins` and `flake.lib.desugarBuiltins`.
+# `mkHkBuiltins { pkgs, hkSrc }` returns a lazy attrset where the keys are hk builtin
+# underscored identifiers (e.g. `nix_fmt`). Each entry is a record that can `.override`:
 #
-# `mkHkBuiltins { pkgs, hkSrc }` returns a lazy attrset keyed by hk builtin
-# identifier (underscored, e.g. `nix_fmt`). Each entry is an overridable record
+# ```nix
+# { name = "gitleaks"; package = <pkgs.gitleaks>; override = f; }
+# ```
 #
-#     { name = "gitleaks"; package = <pkgs.gitleaks>; override = f; }
-#
-# where `package` is a Nixpkgs default (resolved lazily — unused builtins never
-# force their package) and `.override { package = ...; }` repins the tool. The set
-# is surfaced to consumers as the perSystem option `config.hk-nix.builtins.<name>`.
+# where `package` is a Nixpkgs default, resolved lazily and `.override { package = ...; }` repins
+# the builtin tool. The attrset appears as `config.hk-nix.builtins.<name>` to consumers.
 #
 # `desugarBuiltins settings` rewrites any step carrying a `builtin` record into the
-# renderer's amends escape hatch (see render-pkl.nix):
+# renderer's "amends" escape hatch (see render-pkl.nix):
 #
-#     steps.gitleaks = { builtin = <record>; glob = "src/**"; }
-#   becomes
-#     { __amends = "(Builtins.gitleaks)"; glob = "src/**"; env.PATH = "${package}/bin:${basePath}"; }
+# ```nix
+# steps.gitleaks = { builtin = <record>; glob = "src/**"; }
+# ```
+#
+# becomes
+#
+# ```nix
+# { __amends = "(Builtins.gitleaks)"; glob = "src/**"; env.PATH = "${package}/bin:${basePath}"; }
+# ```
 { ... }:
 
 {
@@ -30,14 +34,12 @@
 
       # Builtin identifiers (underscored), read from the hk source tree. Reading it at
       # evaluation time means import-from-derivation when `hkSrc` is a fetched source
-      # (e.g. nixpkgs' `pkgs.hk.src`) — unavoidable, since the names are option keys.
+      # (e.g. nixpkgs' `pkgs.hk.src`).
       names = map (n: lib.replaceStrings [ "-" ] [ "_" ] (lib.removeSuffix ".pkl" n)) (
         lib.filter (n: lib.hasSuffix ".pkl" n) (lib.attrNames (builtins.readDir "${hkSrc}/pkl/builtins"))
       );
 
-      # Builtins whose command runs hk itself (`hk util ...`, `hk test`): the tool is
-      # hk, so no package is pinned and the step falls back to the base PATH, which
-      # carries hk for exactly this reason (see run.nix).
+      # Builtins whose command runs hk itself (`hk util ...`, `hk test`).
       hkNativeBuiltins = [
         "byte_order_marker"
         "check_added_large_files"
@@ -60,9 +62,8 @@
       ];
 
       # Curated packages for builtins the `pkgs.<name>` fallback below can't resolve
-      # on its own: a different attribute, a package-set member, or a name that
-      # collides with an unrelated package. Grows incrementally; see the tracking
-      # issue for the builtins still lacking a default.
+      #
+      # See tracking issue: https://github.com/nix-tools/hk-nix/issues/1
       exceptions = {
         buf_format = pkgs.buf;
         buf_lint = pkgs.buf;
@@ -116,11 +117,9 @@
         xmllint = pkgs.libxml2.bin;
       };
 
-      # Builtins whose tool is not packaged in Nixpkgs (npm/gem tools, vite-plus,
-      # and xo — whose real JS linter is unpackaged, while `pkgs.xo` is an
-      # unrelated, renamed alias). Listing them here makes referencing one without
-      # an `.override` fail with a clear message instead of a misleading Nixpkgs
-      # error (or silently resolving to the wrong package). See the tracking issue.
+      # Builtins not found in Nixpkgs (npm/gem tools, vite-plus, etc.)
+      #
+      # See tracking issue: https://github.com/nix-tools/hk-nix/issues/1
       noNixpkgsPackage = [
         "aqua_update_checksum"
         "astro"
@@ -144,10 +143,7 @@
         "xo"
       ];
 
-      # Default package for a builtin: null for hk-native ones; a clear throw for
-      # tools known to be absent from Nixpkgs; a curated exception; otherwise
-      # `pkgs.<name>` or `pkgs.<name-with-dashes>`; else a lazy fallback throw.
-      # Only forced when a declared builtin step reads `.package`.
+      # Default builtin package. Only forced when a declared builtin step reads `.package`.
       defaultPackage =
         name:
         if lib.elem name hkNativeBuiltins then
@@ -181,10 +177,10 @@
     in
     lib.genAttrs names mkBuiltin;
 
-  # Rewrite builtin-bearing steps under hooks.<hook>.steps into amends markers.
+  # Rewrite builtin-bearing steps under hooks.<hook>.steps into "amends" markers.
   # `basePath` is a pinned `sh`+coreutils bin path appended after the tool, so the
   # step's PATH is fully store-pinned yet hk can still find a shell to run the
-  # command. Pure `builtins.*` otherwise (no pkgs/lib), so it is cheap.
+  # command.
   config.flake.lib.desugarBuiltins =
     { basePath }:
     let
@@ -197,9 +193,6 @@
             b = step.builtin;
             overrides = removeAttrs step [ "builtin" ];
             userEnv = overrides.env or { };
-            # Pin the tool by store path (plus the base for `sh` and for hk itself,
-            # which a null package — an hk-native builtin — shells out to). An
-            # explicit env is kept, with the pin taking precedence.
             env = userEnv // {
               PATH = if b.package == null then basePath else "${b.package}/bin:${basePath}";
             };

@@ -1,25 +1,19 @@
-# The consumer-facing flake-parts module, exported as
-# `hk-nix.flakeModules.default`. It is closed over hk-nix's `flake.lib.mkHkCheck`,
-# so the renderer travels with the module; the binary and the Config.pkl schema
-# both come from the consumer's `pkgs.hk`, which keeps the two in step.
+# consumer-facing flake-parts module `hk-nix.flakeModules.default`. It is closed over hk-nix's
+# `flake.lib.mkHkCheck`, so the hk renderer and the Config.pkl schema come from the same binary.
 #
-# Import it and declare hooks:
-#
-#   imports = [ inputs.hk-nix.flakeModules.default ];
-#   perSystem = { config, pkgs, lib, ... }: {
-#     hk-nix.settings.hooks."pre-commit".steps.nixfmt = {
-#       glob = "*.nix";
-#       fix  = "${lib.getExe pkgs.nixfmt} {{files}}";
-#     };
-#     devShells.default = pkgs.mkShell {
-#       packages = [ config.hk-nix.hk ];
-#       inherit (config.hk-nix) shellHook;
-#     };
+# ```nix
+# imports = [ inputs.hk-nix.flakeModules.default ];
+# perSystem = { config, pkgs, lib, ... }: {
+#   hk-nix.settings.hooks."pre-commit".steps.nixfmt = {
+#     glob = "*.nix";
+#     fix  = "${lib.getExe pkgs.nixfmt} {{files}}";
 #   };
-#
-# hk-nix also dogfoods this module on itself: `imports = [ consumerModule ]`
-# below activates the `hk-nix.*` options and `checks.hk` output in hk-nix's own
-# flake, so hooks.nix can declare hk-nix's hooks and `nix flake check` runs them.
+#   devShells.default = pkgs.mkShell {
+#     packages = [ config.hk-nix.hk ];
+#     inherit (config.hk-nix) shellHook;
+#   };
+# };
+# ```
 { config, ... }:
 
 let

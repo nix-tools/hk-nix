@@ -1,10 +1,8 @@
 # Nix -> Pkl renderer for hk configuration, exposed as `flake.lib.renderHkPkl`.
 #
-# Turns a Nix attrset describing an hk.pkl into a Pkl source string that
-# `amends` a local (store-path) copy of hk's Config.pkl schema, so evaluation
-# is fully offline — no `package://` fetch — and works inside the nix build
-# sandbox. This is the hk analogue of lefthook.nix's `builtins.toJSON`+jq step,
-# except Pkl is not JSON so we need a small, hk-shaped pretty-printer.
+# Turns a Nix attrset describing an hk.pkl into a Pkl source string that `amends` a local
+# (store-path) copy of hk's Config.pkl schema, so evaluation is fully offline. There is no
+# `package://` fetch, so this works inside the nix build sandbox.
 { lib, ... }:
 
 let
@@ -16,30 +14,31 @@ let
     isAttrs
     ;
 
-  # Pkl string literals use JSON-like backslash escapes. Escape backslash and
-  # quote first, then control characters (so their inserted backslashes are not
-  # re-escaped). Note: hk template braces like `{{files}}` are literal in Pkl
-  # (Pkl interpolation is `\(...)`, not `{{...}}`), so they need no escaping.
+  # Pkl string literals use JSON-like backslash escapes. Escape backslash and quote first, then
+  # control characters (so their inserted backslashes are not re-escaped). Note: hk template braces
+  # like `{{files}}` are literal in Pkl (Pkl interpolation is `\(...)`, not `{{...}}`), so they need
+  # no escaping.
   escape =
     s: builtins.replaceStrings [ "\n" "\t" "\r" ] [ "\\n" "\\t" "\\r" ] (lib.escape [ "\\" "\"" ] s);
 
   indent = n: lib.concatStrings (lib.genList (_: "  ") n);
 
-  # Keys whose values are Pkl `Mapping`s (rendered with `["key"]` entry syntax)
-  # rather than plain object properties. This is the entire hk-specific bit of
-  # knowledge the renderer needs.
+  # Keys whose values are Pkl `Mapping`s (rendered with `["key"]` entry syntax) rather than plain
+  # object properties. This is the entire hk-specific bit of knowledge the renderer needs.
   mappingKeys = [
     "hooks"
     "steps"
     "env"
   ];
 
-  # Escape-hatch markers let a Nix value carry verbatim Pkl instead of a rendered
-  # literal. Both are checked before the generic attrs handling, so a marker wins
-  # even when its key is a Mapping key:
-  #   { __pkl = "<expr>"; }              -> emitted as-is (e.g. `super.argv.drop(1)`)
-  #   { __amends = "<expr>"; <body...> } -> `<expr> { <body> }` (Pkl amends), e.g.
+  # Escape-hatch markers let a Nix value carry verbatim Pkl instead of a rendered literal. Both are
+  # checked before the generic attrs handling, so a marker wins even when its key is a Mapping key:
+  #
+  # ```nix
+  # { __pkl = "<expr>"; }              -> emitted as-is (e.g. `super.argv.drop(1)`)
+  # { __amends = "<expr>"; <body...> } -> `<expr> { <body> }` (Pkl amends), e.g.
   #                                         `(Builtins.gitleaks) { env { ... } }`
+  # ```
   isRaw = v: isAttrs v && v ? __pkl;
   isAmend = v: isAttrs v && v ? __amends;
 
