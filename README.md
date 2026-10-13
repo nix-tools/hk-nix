@@ -254,6 +254,41 @@ overlays = [
 ];
 ```
 
+#### Prebuilt release binaries
+
+Building hk from source is a Rust build. `flake.lib.mkHkBin` takes the binary jdx/hk publishes with
+each release instead, on Linux the static musl one:
+
+```nix
+perSystem =
+  { pkgs, ... }:
+  {
+    hk-nix.package = inputs.hk-nix.lib.mkHkBin { inherit pkgs; };
+  };
+```
+
+The pin is hk 2.6.0 for x86_64-linux, aarch64-linux and aarch64-darwin; upstream publishes no
+x86_64-darwin asset. The same package is exposed as `packages.hk-bin`.
+
+Its `src` is the matching source tarball rather than the binary archive, so `hkSrc` still finds the
+Pkl schema and the builtins, at the version the binary speaks.
+
+To use a release hk-nix has not pinned, pass your own `release`:
+
+```nix
+inputs.hk-nix.lib.mkHkBin {
+  inherit pkgs;
+  release = {
+    version = "2.7.0";
+    srcHash = "sha256-...";
+    assets.x86_64-linux = {
+      target = "x86_64-unknown-linux-musl";
+      hash = "sha256-...";
+    };
+  };
+}
+```
+
 ## Without flakes
 
 The overlay is plain Nix, so it needs no flake evaluation:

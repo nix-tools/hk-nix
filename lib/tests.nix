@@ -11,7 +11,13 @@
     { pkgs, ... }:
     let
       lib = pkgs.lib;
-      inherit (config.flake.lib) mkHkCheck withHkConfig mkHkBuiltins;
+      inherit (config.flake.lib)
+        mkHkCheck
+        withHkConfig
+        mkHkBuiltins
+        mkHkBin
+        hkRelease
+        ;
 
       # hk-nix does not apply its own overlay, so `pkgs` here is the un-overlaid one
       # and both sides of the overlay are testable in one evaluation.
@@ -72,6 +78,18 @@
             pkgs = plainPkgs;
             hkSrc = plainPkgs.hk.src;
           }).check_conventional_commit;
+      };
+
+      # The upstream release binary, paired with the Pkl schema from its own source
+      # tarball. It runs a different hk version than nixpkgs', so this is where a schema
+      # change upstream shows up. Only on the systems jdx/hk publishes assets for.
+      hkBin = mkHkBin { pkgs = plainPkgs; };
+      hkBinResult = mkHkCheck {
+        pkgs = plainPkgs;
+        package = hkBin;
+        hkSrc = hkBin.src;
+        src = fixture;
+        settings.hooks."pre-commit".steps.reject_bad = failStep;
       };
 
       cfg = pkgs.writeText "hk.pkl" "// test\n";
@@ -345,6 +363,29 @@
 
           touch $out
         '';
+      }
+      // lib.optionalAttrs (hkRelease.assets ? ${pkgs.stdenv.hostPlatform.system}) {
+        # The release binary end to end: the schema from the matching source tarball
+        # has to parse under that binary, and the step it declares has to fire.
+        test-hk-bin =
+          pkgs.runCommand "test-hk-bin"
+            (sandboxEnv // { nativeBuildInputs = sandboxEnv.nativeBuildInputs ++ [ hkBinResult.runtimeHk ]; })
+            ''
+              ${repoSetup}
+              hk --version | grep -q '${hkBin.version}' \
+                || { echo "FAIL: not the pinned release binary" >&2; exit 1; }
+
+              mkdir repo && cd repo && git init -q
+              echo bad >violation.bad
+              git add -A
+
+              if hk run pre-commit --all --check; then
+                echo "FAIL: the release binary accepted a seeded violation" >&2
+                exit 1
+              fi
+
+              touch $out
+            '';
       };
     };
 }
