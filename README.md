@@ -176,21 +176,14 @@ hk normally uses a file called hk.pkl, which hk-nix can generate from the `setti
 
 The location of this file defaults to the project root, but can be tweaked with the `HK_FILE` environment variable.
 
-hk-nix can bake this environment variable into the `hk` binary in two ways, so that you don't need to gitignore it.
+hk-nix can bake this environment variable into the `hk` binary, so that you don't need to gitignore it.
 
-Generally, there are two ways to do this:
+An hk on your `PATH` can be doing one of two jobs: running a project's hooks automatically, or being
+the hk CLI invoked by a user. hk-nix makes it possible to reference both `hk` with/without baked-in
+configs, since accessing a plain CLI can be useful. So `pkgs.hk` is the plain CLI.
 
-1. Add the package `config.hk-nix.hk` instead of `pkgs.hk` to your `devshell.packages`
-
-An hk on your `PATH` can be doing one of two jobs: running one project's hooks, or being the hk CLI.
-Only the first wants a config baked in. hk-nix keeps them separate rather than guessing, so `pkgs.hk`
-is always the plain CLI and a config-carrying hk is something you ask for.
-
-Inside the flake module, `config.hk-nix.hk` is that ask, and it needs no overlay.
-
-Elsewhere — a NixOS or home-manager configuration, or no flakes at all — apply `overlays.default`,
-which adds one thing to `pkgs.hk`: a `withConfig` function taking an hk.pkl and returning an hk with
-it baked in.
+If you apply `hk-nix.overlays.default`, then `pkgs.hk` is enriched with a `.withConfig` function
+that takes a hk.pkl and returns an `hk` binary with that config baked in:
 
 ```nix
 perSystem =
@@ -203,18 +196,18 @@ perSystem =
   };
 ```
 
-The two then coexist, each spelling saying which job it is for:
+The two then coexist for different purposes:
 
 ```nix
 environment.systemPackages = [ pkgs.hk ];                              # the CLI
 devShells.default.packages = [ (pkgs.hk.withConfig ./hk.pkl) ];        # a hook runner
 ```
 
-To pass the config the flake module generated rather than a handwritten file, use
-`pkgs.hk.withConfig config.hk-nix.configFile`, which is exactly what `config.hk-nix.hk` is.
+As a convenience, `config.hk-nix.hk` is equivalent to
 
-The overlay picks no build of hk and only ever touches `passthru`, so an overlaid `pkgs.hk` is the
-same derivation, and the same binary cache hit, as before.
+```nix
+pkgs.hk.withConfig config.hk-nix.configFile
+```
 
 ### Changing the hk binary
 
@@ -232,7 +225,10 @@ perSystem =
   {
     _module.args.pkgs = import inputs.nixpkgs {
       inherit system;
-      overlays = [ inputs.hk.overlay inputs.hk-nix.overlays.default ];
+      overlays = [
+        inputs.hk.overlay
+        inputs.hk-nix.overlays.default
+      ];
     };
   };
 ```
@@ -256,8 +252,15 @@ overlays = [
 
 #### Prebuilt release binaries
 
-Building hk from source is a Rust build. `flake.lib.mkHkBin` takes the binary jdx/hk publishes with
-each release instead, on Linux the static musl one:
+Installing hk from nixpkgs provides a binary cache for somewhat recent versions.
+
+However, hk often releases new versions, and to use the latest, you may miss the binary cache.
+
+You can use [the GitHub releases of jdx/hk][hk-release] as a more cutting-edge binary cache.
+
+[hk-release]: https://github.com/jdx/hk/releases
+
+For this, hk-nix exposes a helper function `flake.lib.mkHkBin` for producing precompiled derivations:
 
 ```nix
 perSystem =
@@ -266,9 +269,6 @@ perSystem =
     hk-nix.package = inputs.hk-nix.lib.mkHkBin { inherit pkgs; };
   };
 ```
-
-The pin is hk 2.6.0 for x86_64-linux, aarch64-linux and aarch64-darwin; upstream publishes no
-x86_64-darwin asset. The same package is exposed as `packages.hk-bin`.
 
 Its `src` is the matching source tarball rather than the binary archive, so `hkSrc` still finds the
 Pkl schema and the builtins, at the version the binary speaks.
