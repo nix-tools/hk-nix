@@ -121,14 +121,15 @@
             # leaving the repo on hooks that call a bare `hk` with no config.
             if hk install --force-local; then
               # hk writes each command as a bare `hk`, resolved from PATH when the hook
-              # fires. Outside the dev shell that is a different hk with no HK_FILE, and
-              # `--from-hook` exits 0 without output when it finds no config, so hooks
-              # would silently pass. Rewrite just the binary to an absolute store path
-              # and let hk keep deciding which hooks and events to install.
+              # fires. Outside the dev shell that is a different hk with no HK_FILE (hk 2.6
+              # appends its own unwrapped bin to PATH as a fallback), and `--from-hook`
+              # exits 0 without output when it finds no config, so hooks would silently
+              # pass. Rewrite just the binary to an absolute store path and let hk keep
+              # deciding which hooks and events to install.
               git config --local --get-regexp '^hook\.hk-[^.]*\.command$' |
                 while read -r _key _cmd; do
                   git config --local "$_key" \
-                    "$(printf '%s' "$_cmd" | sed "s#|| hk #|| ${runtimeHk}/bin/hk #")"
+                    "$(printf '%s' "$_cmd" | sed "s# hk run # ${runtimeHk}/bin/hk run #")"
                 done
               # Record the marker only on a clean install, so a failure retries next time.
               if [ -n "$marker" ]; then printf '%s' "${runtimeHk}" >"$marker"; fi
