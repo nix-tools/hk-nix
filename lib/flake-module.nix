@@ -17,7 +17,7 @@
 { config, ... }:
 
 let
-  inherit (config.flake.lib) mkHkCheck mkHkBuiltins;
+  inherit (config.flake.lib) mkHkCheck mkHkBuiltins mkHkBin;
 
   consumerModule =
     { lib, self, ... }:
@@ -41,12 +41,14 @@ let
           options.hk-nix = {
             package = lib.mkOption {
               type = lib.types.package;
-              default = pkgs.hk;
-              defaultText = lib.literalMD "`pkgs.hk` (nixpkgs)";
+              # Back to `pkgs.hk` once nixpkgs ships hk 2.5 or later, whose Pkl
+              # evaluator reads the import expressions in the bundle's Builtins.pkl.
+              default = mkHkBin { inherit pkgs; };
+              defaultText = lib.literalMD "`hk-nix.lib.mkHkBin { inherit pkgs; }` (the jdx/hk release binary)";
               description = ''
                 The hk package to use, and the source of the Pkl schema hk-nix amends
-                (see `hkSrc`). Defaults to nixpkgs' hk; to use another build, either
-                set this or define `pkgs.hk` in an overlay of your own.
+                (see `hkSrc`). Defaults to the jdx/hk release binary; nixpkgs' hk is
+                older than the 2.5 that hk-nix's Builtins.pkl needs.
               '';
             };
 

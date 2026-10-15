@@ -1,10 +1,7 @@
 # Prebuilt hk from the jdx/hk GitHub releases, exposed as `flake.lib.mkHkBin` and, on the
-# systems upstream publishes for, as `packages.hk-bin`. nixpkgs' hk trails upstream by
-# several releases, so this is the way to a newer hk without a Rust build.
-#
-# ```nix
-# hk-nix.package = inputs.hk-nix.lib.mkHkBin { inherit pkgs; };
-# ```
+# systems upstream publishes for, as `packages.hk-bin`. It is `hk-nix.package`'s default:
+# nixpkgs' hk trails upstream by several releases, and this is the way to a newer hk
+# without a Rust build.
 #
 # Bumping to a new upstream release means editing `release` below: raise `version`, set
 # the four hashes to `lib.fakeHash`, and build once per system to collect the real ones.

@@ -160,7 +160,7 @@ on the step's `PATH` for that reason.
 | Option | Type | Default | Description |
 | --- | --- | --- | --- |
 | `settings` | attrs | `{ }` | The hk.pkl top-level (e.g. `{ hooks = { ... }; }`). |
-| `package` | package | `pkgs.hk` (nixpkgs) | The hk build to wrap, and the source of the amended Pkl schema. |
+| `package` | package | `lib.mkHkBin { inherit pkgs; }` | The hk build to wrap, and the source of the amended Pkl schema. |
 | `hkSrc` | path | `package.src` | hk source tree supplying `Config.pkl` and the builtin definitions. |
 | `src` | path | `self` | Project root copied into the check derivation. |
 | `checkHook` | str | `"pre-commit"` | Hook run (read-only) by `checks.hk`. |
@@ -211,8 +211,12 @@ pkgs.hk.withConfig config.hk-nix.configFile
 
 ### Changing the hk binary
 
-`hk-nix.package` defaults to nixpkgs' `pkgs.hk`, and `hk-nix.hkSrc` defaults to that package's own
-`src`, so hk-nix pins no hk of its own.
+`hk-nix.package` defaults to the jdx/hk release binary (see [Prebuilt release
+binaries](#prebuilt-release-binaries)), and `hk-nix.hkSrc` defaults to that package's own `src`.
+
+nixpkgs' `pkgs.hk` is not the default until nixpkgs ships hk 2.5 or later: the Builtins.pkl that
+hk-nix generates imports each builtin with an import expression, which older hk cannot evaluate.
+Any hk you set below has to be 2.5 or later for the same reason.
 
 To run hk built from its own repository, add it as an input and use the overlay it ships:
 
@@ -260,7 +264,8 @@ You can use [the GitHub releases of jdx/hk][hk-release] as a more cutting-edge b
 
 [hk-release]: https://github.com/jdx/hk/releases
 
-For this, hk-nix exposes a helper function `flake.lib.mkHkBin` for producing precompiled derivations:
+For this, hk-nix exposes a helper function `flake.lib.mkHkBin` for producing precompiled derivations,
+and it is what `hk-nix.package` defaults to:
 
 ```nix
 perSystem =

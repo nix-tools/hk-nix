@@ -31,12 +31,16 @@
         glob = "*.bad";
         check = "${pkgs.coreutils}/bin/false";
       };
+      # The hk the behavioral tests run. Back to `plainPkgs.hk` once nixpkgs ships hk 2.5
+      # or later, the oldest whose Pkl evaluator reads the bundle's import expressions.
+      testHk = hkBin;
+
       mkResult =
         settings:
         mkHkCheck {
           pkgs = plainPkgs;
-          package = plainPkgs.hk;
-          hkSrc = plainPkgs.hk.src;
+          package = testHk;
+          hkSrc = testHk.src;
           src = fixture;
           inherit settings;
         };
@@ -76,7 +80,7 @@
         hooks."commit-msg".steps.check_conventional_commit.builtin =
           (mkHkBuiltins {
             pkgs = plainPkgs;
-            hkSrc = plainPkgs.hk.src;
+            hkSrc = testHk.src;
           }).check_conventional_commit;
       };
 
