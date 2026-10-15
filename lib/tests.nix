@@ -83,13 +83,23 @@
       # The upstream release binary, paired with the Pkl schema from its own source
       # tarball. It runs a different hk version than nixpkgs', so this is where a schema
       # change upstream shows up. Only on the systems jdx/hk publishes assets for.
+      #
+      # The builtin is there for its import of the bundle's Builtins.pkl, which an hk
+      # that evaluates Pkl differently from nixpkgs' may fail to load.
       hkBin = mkHkBin { pkgs = plainPkgs; };
       hkBinResult = mkHkCheck {
         pkgs = plainPkgs;
         package = hkBin;
         hkSrc = hkBin.src;
         src = fixture;
-        settings.hooks."pre-commit".steps.reject_bad = failStep;
+        settings.hooks = {
+          "pre-commit".steps.reject_bad = failStep;
+          "commit-msg".steps.check_conventional_commit.builtin =
+            (mkHkBuiltins {
+              pkgs = plainPkgs;
+              hkSrc = hkBin.src;
+            }).check_conventional_commit;
+        };
       };
 
       cfg = pkgs.writeText "hk.pkl" "// test\n";

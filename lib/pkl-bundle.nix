@@ -12,8 +12,9 @@
 # typically `pkgs.hk.src`, a fetched derivation, so listing its builtins during evaluation would
 # mean import-from-derivation.
 #
-# The bundle's closure is just itself plus the hk source: it references no linter packages, so
-# importing it never pulls the 143 tools into a check derivation.
+# The bundle's closure is just itself: every file is copied, so the hk source is only a build input,
+# and it references no linter packages, so importing it never pulls the 143 tools into a check
+# derivation.
 { ... }:
 
 {
@@ -28,8 +29,8 @@
       # The aggregator's header: a `meta` annotation class, referenced by every builtin.
       header = ''
         // Synthesized by hk-nix, mirroring hk's scripts/gen_builtins.py header.
-        // The `builtins/` this globs must be a REAL directory (per-file symlinks
-        // are fine): Pkl `import*` does not descend a symlinked directory.
+        // The `builtins/` this globs must hold real files: pklr 5 (hk 2.6) skips
+        // symbolic links when it lists a glob, as pkl does.
         import* "builtins/*.pkl" as Builtins
 
         class ProjectIndicator {
@@ -45,19 +46,16 @@
       '';
     in
     pkgs.runCommand "hk-pkl-bundle" { inherit header; } ''
-      mkdir -p $out/builtins/test
+      mkdir -p $out
 
-      # Symlink the schema and project files (Config.pkl, Types.pkl, UserConfig.pkl,
-      # PklProject*) beside our Builtins.pkl so their relative imports resolve.
+      # Copy the schema and project files (Config.pkl, Types.pkl, UserConfig.pkl,
+      # PklProject*) and the builtins beside our Builtins.pkl so their relative imports resolve.
       for f in ${pklDir}/*.pkl ${pklDir}/PklProject ${pklDir}/PklProject.deps.json; do
-        [ -e "$f" ] && ln -s "$f" "$out/$(basename "$f")"
+        [ -e "$f" ] && cp "$f" "$out/"
       done
+      cp -r ${pklDir}/builtins $out/
 
-      # `builtins/` must be a real dir of per-file symlinks — see the header above.
-      for f in ${pklDir}/builtins/*.pkl; do ln -s "$f" "$out/builtins/$(basename "$f")"; done
-      for f in ${pklDir}/builtins/test/*; do ln -s "$f" "$out/builtins/test/$(basename "$f")"; done
-
-      # Drop a symlink left by the loops above, so the writes below land in a real file.
+      # Drop a read-only copy left by the loop above, so the writes below can replace it.
       rm -f $out/Builtins.pkl
 
       # Re-export each builtin as a top-level property, so a consumer writes
