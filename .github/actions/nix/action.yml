@@ -2,10 +2,14 @@
 # a binary cache off once the from-source hk build gets tiresome. Callers still
 # run actions/checkout themselves — a local action only resolves once the repo is
 # on disk, so it cannot check out the repo it lives in.
+#
+# nix-quick-install installs upstream Nix, single-user and without a daemon, and
+# is tied to neither a cache product nor a Nix distribution. Nothing here builds
+# anything it cannot substitute, so the daemon and its sandbox would buy nothing.
 name: nix
 description: Install Nix with flakes enabled.
 
 runs:
   using: composite
   steps:
-    - uses: DeterminateSystems/nix-installer-action@main
+    - uses: nixbuild/nix-quick-install-action@v35
