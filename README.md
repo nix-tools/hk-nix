@@ -155,6 +155,30 @@ steps.gitleaks = {
 Some builtins are implemented inside hk itself and pin no package; they run `hk` directly, which is
 on the step's `PATH` for that reason.
 
+## Examples
+
+[examples/](./examples) holds one flake-parts module per hook, of the shape a project keeps in
+`nix/hooks.nix`. `nix flake check` validates each one with `hk validate` rather than running it.
+
+- [treefmt](./examples/treefmt.nix): the formatting pre-commit everything else is built on, fixing in place and stashing unstaged work.
+- [conventional-commits](./examples/conventional-commits.nix): reject a commit message that is not a conventional commit.
+- [nix-hygiene](./examples/nix-hygiene.nix): deadnix on pre-push, with generated Nix excluded everywhere at once.
+- [rust-workspace](./examples/rust-workspace.nix): clippy, a locked `cargo metadata`, and the unit tests without the integration suite.
+- [cargo-readme](./examples/cargo-readme.nix): regenerate README.md from rustdoc and diff it, piped through treefmt's mdformat so the two hooks agree on one fixpoint.
+- [secret-scanning](./examples/secret-scanning.nix): betterleaks over the staged files on pre-commit, and the gitleaks builtin beside it.
+- [sops-rekey](./examples/sops-rekey.nix): catch a secret that is no longer encrypted to the recipients `.sops.yaml` would assign it.
+- [strip-comments](./examples/strip-comments.nix): remove every comment that is not a doc comment, with ast-grep rules built from Nix.
+- [go-workspace](./examples/go-workspace.nix): vet, staticcheck, `go mod tidy -diff`, and the short tests.
+- [eval-gates](./examples/eval-gates.nix): force evaluation of a flake whose outputs are too expensive to build on every push.
+- [hugo-site](./examples/hugo-site.nix): render the site into a temporary directory, with no glob, because a template break is not a file set.
+- [helm-chart](./examples/helm-chart.nix): `helm lint` next to a Nix eval, keeping the webpack build in CI.
+- [opentofu](./examples/opentofu.nix): `tofu validate` on top of a backendless init, so it never touches state.
+- [tag-version](./examples/tag-version.nix): read the pushed refs from `{{hook_stdin}}` and refuse a release tag the commit's version does not match.
+- [golden-json](./examples/golden-json.nix): parse a captured fixture corpus with jq, which needs neither network nor build.
+- [sqlx-offline](./examples/sqlx-offline.nix): check the offline query cache, conditionally on a database being configured.
+- [hermetic-assets](./examples/hermetic-assets.nix): ban the call sites that would fetch over the network during a build.
+- [flake-check-hook](./examples/flake-check-hook.nix): a hook of its own for `nix flake check`, sharing its steps with pre-push.
+
 ## Options (`perSystem.hk-nix`)
 
 | Option | Type | Default | Description |
