@@ -178,6 +178,7 @@ on the step's `PATH` for that reason.
 - [sqlx-offline](./examples/sqlx-offline.nix): check the offline query cache, conditionally on a database being configured.
 - [hermetic-assets](./examples/hermetic-assets.nix): ban the call sites that would fetch over the network during a build.
 - [flake-check-hook](./examples/flake-check-hook.nix): a hook of its own for `nix flake check`, sharing its steps with pre-push.
+- [linkcheck](./examples/linkcheck.nix): check external links in staged Markdown, with a parse-only hook for the `nix flake check` sandbox.
 
 ## Options (`perSystem.hk-nix`)
 
