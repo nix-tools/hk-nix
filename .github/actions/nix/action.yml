@@ -12,4 +12,4 @@ description: Install Nix with flakes enabled.
 runs:
   using: composite
   steps:
-    - uses: nixbuild/nix-quick-install-action@v35
+    - uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35, 2026-06-17
